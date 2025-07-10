@@ -14,8 +14,8 @@ const CalendarView = ({ projectId }) => {
       const calendarEvents = res.data.map(task => ({
         id: task.id,
         title: task.title,
-        start: new Date(),
-        end: new Date(),
+        start: task.due_date ? new Date(task.due_date) : new Date(),
+        end: task.due_date ? new Date(task.due_date) : new Date(),
         allDay: true,
       }));
       setEvents(calendarEvents);
