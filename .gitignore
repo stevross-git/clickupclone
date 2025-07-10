@@ -1,0 +1,8 @@
+backend/**/__pycache__/**
+backend/app/__pycache__/__init__.cpython-313.pyc
+backend/app/__pycache__/main.cpython-312.pyc
+backend/app/__pycache__/main.cpython-313.pyc
+backend/app/api/__pycache__/__init__.cpython-312.pyc
+backend/app/api/__pycache__/__init__.cpython-313.pyc
+backend/app/api/__pycache__/deps.cpython-312.pyc
+backend/app/api/__pycache__/deps.cpython-313.pyc
