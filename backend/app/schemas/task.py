@@ -1,12 +1,21 @@
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 from datetime import date
 
 class TaskBase(BaseModel):
     title: str
-    description: str | None = None
-    status: str
-    due_date: date | None = None
+    description: Optional[str] = None
+    status: str = "open"
+    priority: Optional[int] = 0
+    due_date: Optional[date] = None
+    project_id: int
+    assignee_id: Optional[int] = None
+
+class TaskCreate(TaskBase):
+    pass
+
+class TaskUpdate(TaskBase):
+    pass
 
 class Task(TaskBase):
     id: int

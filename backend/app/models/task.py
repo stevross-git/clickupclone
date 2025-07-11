@@ -1,13 +1,19 @@
-from sqlalchemy import Column, Integer, String, Text
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, Date
+from sqlalchemy.orm import relationship
 
-Base = declarative_base()
-
-task_dependencies = None  # placeholder for advanced features
+from app.db.base import Base
 
 class Task(Base):
-    __tablename__ = "task"
+    __tablename__ = "tasks"
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, index=True)
-    description = Column(Text)
+    description = Column(Text, default="")
     status = Column(String, default="open")
+    priority = Column(Integer, default=0)
+    due_date = Column(Date, nullable=True)
+    assignee_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    project_id = Column(Integer, ForeignKey("projects.id"))
+
+    assignee = relationship("User", back_populates="tasks")
+    project = relationship("Project", back_populates="tasks")
+    comments = relationship("Comment", back_populates="task")
