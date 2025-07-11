@@ -331,10 +331,14 @@ def read_tasks(
     task_list_id: Optional[int] = None,
     assignee_id: Optional[int] = None,
     status: Optional[TaskStatus] = None,
+    include_archived: bool = False,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     query = db.query(Task).join(Task.project).join(Project.members).filter(User.id == current_user.id)
+
+    if not include_archived:
+        query = query.filter(Task.is_active == True)
     
     if project_id:
         query = query.filter(Task.project_id == project_id)
@@ -419,6 +423,34 @@ async def move_task(task_id: int, move_data: TaskMove, current_user: User = Depe
     }, f"project_{task.project_id}")
     
     return {"message": "Task moved successfully"}
+
+@app.post("/tasks/{task_id}/archive", response_model=Task)
+def archive_task(task_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    if current_user not in task.project.members:
+        raise HTTPException(status_code=403, detail="Not a member of this project")
+
+    task.is_active = False
+    db.commit()
+    db.refresh(task)
+    return task
+
+@app.post("/tasks/{task_id}/restore", response_model=Task)
+def restore_task(task_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    if current_user not in task.project.members:
+        raise HTTPException(status_code=403, detail="Not a member of this project")
+
+    task.is_active = True
+    db.commit()
+    db.refresh(task)
+    return task
 
 @app.delete("/tasks/{task_id}", response_model=Task)
 def delete_task(task_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
