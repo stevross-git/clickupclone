@@ -153,6 +153,7 @@ class TaskUpdate(BaseModel):
     start_date: Optional[datetime] = None
     task_list_id: Optional[int] = None
     assignee_ids: Optional[List[int]] = None
+    is_active: Optional[bool] = None
 
 class TaskMove(BaseModel):
     task_list_id: int

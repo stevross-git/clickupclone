@@ -1,14 +1,17 @@
 // components/TaskCard.jsx
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  CalendarIcon, 
+import apiClient from '../services/api';
+import { useNotification } from '../contexts/NotificationContext';
+import {
+  CalendarIcon,
   ChatBubbleLeftIcon,
   PaperClipIcon,
-  ClockIcon 
+  ClockIcon
 } from '@heroicons/react/24/outline';
+import { ArchiveBoxIcon } from '@heroicons/react/24/solid';
 
-function TaskCard({ task }) {
+function TaskCard({ task, onArchived }) {
   const getPriorityColor = (priority) => {
     switch (priority) {
       case 'urgent': return 'bg-red-100 text-red-800 border-red-200';
@@ -26,6 +29,20 @@ function TaskCard({ task }) {
       case 'blocked': return 'bg-red-100 text-red-800';
       case 'todo': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const { addNotification } = useNotification();
+
+  const handleArchive = async (e) => {
+    e.preventDefault();
+    try {
+      await apiClient.post(`/tasks/${task.id}/archive`);
+      addNotification('Task archived', 'success');
+      if (onArchived) onArchived(task);
+    } catch (error) {
+      console.error('Error archiving task:', error);
+      addNotification('Error archiving task', 'error');
     }
   };
 
@@ -62,6 +79,13 @@ function TaskCard({ task }) {
               {task.status.replace('_', ' ')}
             </span>
           )}
+          <button
+            onClick={handleArchive}
+            className="ml-2 text-gray-400 hover:text-gray-600"
+            title="Archive task"
+          >
+            <ArchiveBoxIcon className="h-4 w-4" />
+          </button>
         </div>
 
         {/* Task Title */}

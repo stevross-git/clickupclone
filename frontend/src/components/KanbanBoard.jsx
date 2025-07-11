@@ -114,6 +114,10 @@ function KanbanBoard({ projectId }) {
     setShowCreateTask(false);
   };
 
+  const handleTaskArchived = (task) => {
+    setTasks(prev => prev.filter(t => t.id !== task.id));
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -183,7 +187,7 @@ function KanbanBoard({ projectId }) {
                                     : provided.draggableProps.style?.transform
                                 }}
                               >
-                                <TaskCard task={task} />
+                                <TaskCard task={task} onArchived={handleTaskArchived} />
                               </div>
                             )}
                           </Draggable>
