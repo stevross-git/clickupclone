@@ -14,8 +14,19 @@ import json
 import logging
 import os
 
-from app.models.models import Base, User, Workspace, Project, TaskList, Task, Comment, ActivityLog
-from app.schemas.schemas import *
+import app.models.models as models
+from app.schemas import schemas
+
+Base = models.Base
+User = models.User
+Workspace = models.Workspace
+Project = models.Project
+TaskList = models.TaskList
+Task = models.Task
+Comment = models.Comment
+ActivityLog = models.ActivityLog
+TaskStatus = models.TaskStatus
+TaskPriority = models.TaskPriority
 
 # Database setup
 SQLALCHEMY_DATABASE_URL = os.getenv(
@@ -134,7 +145,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
         username: str = payload.get("sub")
         if username is None:
             raise credentials_exception
-        token_data = TokenPayload(sub=int(username))
+        token_data = schemas.TokenPayload(sub=int(username))
     except JWTError:
         raise credentials_exception
     user = db.query(User).filter(User.id == token_data.sub).first()
@@ -148,8 +159,8 @@ def health_check():
     return {"status": "healthy"}
 
 # Authentication endpoints
-@app.post("/auth/register", response_model=User)
-def register(user: UserCreate, db: Session = Depends(get_db)):
+@app.post("/auth/register", response_model=schemas.User)
+def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.email == user.email).first()
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -171,7 +182,7 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     db.refresh(db_user)
     return db_user
 
-@app.post("/auth/token", response_model=Token)
+@app.post("/auth/token", response_model=schemas.Token)
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(User).filter(
         or_(User.email == form_data.username, User.username == form_data.username)
@@ -188,17 +199,17 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-@app.get("/auth/me", response_model=User)
+@app.get("/auth/me", response_model=schemas.User)
 def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
 
 # User endpoints
-@app.get("/users/", response_model=List[User])
+@app.get("/users/", response_model=List[schemas.User])
 def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     users = db.query(User).offset(skip).limit(limit).all()
     return users
 
-@app.get("/users/{user_id}", response_model=User)
+@app.get("/users/{user_id}", response_model=schemas.User)
 def read_user(user_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
@@ -206,8 +217,8 @@ def read_user(user_id: int, db: Session = Depends(get_db)):
     return user
 
 # Workspace endpoints
-@app.post("/workspaces/", response_model=Workspace)
-def create_workspace(workspace: WorkspaceCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+@app.post("/workspaces/", response_model=schemas.Workspace)
+def create_workspace(workspace: schemas.WorkspaceCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     db_workspace = Workspace(
         **workspace.dict(),
         owner_id=current_user.id
@@ -222,11 +233,11 @@ def create_workspace(workspace: WorkspaceCreate, current_user: User = Depends(ge
     
     return db_workspace
 
-@app.get("/workspaces/", response_model=List[Workspace])
+@app.get("/workspaces/", response_model=List[schemas.Workspace])
 def read_workspaces(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return current_user.workspaces
 
-@app.get("/workspaces/{workspace_id}", response_model=Workspace)
+@app.get("/workspaces/{workspace_id}", response_model=schemas.Workspace)
 def read_workspace(workspace_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
     if not workspace:
@@ -238,8 +249,8 @@ def read_workspace(workspace_id: int, current_user: User = Depends(get_current_u
     
     return workspace
 
-@app.put("/workspaces/{workspace_id}", response_model=Workspace)
-def update_workspace(workspace_id: int, workspace_update: WorkspaceUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+@app.put("/workspaces/{workspace_id}", response_model=schemas.Workspace)
+def update_workspace(workspace_id: int, workspace_update: schemas.WorkspaceUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
     if not workspace:
         raise HTTPException(status_code=404, detail="Workspace not found")
@@ -256,8 +267,8 @@ def update_workspace(workspace_id: int, workspace_update: WorkspaceUpdate, curre
     return workspace
 
 # Project endpoints
-@app.post("/projects/", response_model=Project)
-def create_project(project: ProjectCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+@app.post("/projects/", response_model=schemas.Project)
+def create_project(project: schemas.ProjectCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     # Check workspace access
     workspace = db.query(Workspace).filter(Workspace.id == project.workspace_id).first()
     if not workspace or current_user not in workspace.members:
@@ -277,7 +288,7 @@ def create_project(project: ProjectCreate, current_user: User = Depends(get_curr
     
     return db_project
 
-@app.get("/projects/", response_model=List[Project])
+@app.get("/projects/", response_model=List[schemas.Project])
 def read_projects(workspace_id: Optional[int] = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     query = db.query(Project).join(Project.members).filter(User.id == current_user.id)
     
@@ -286,7 +297,7 @@ def read_projects(workspace_id: Optional[int] = None, current_user: User = Depen
     
     return query.all()
 
-@app.get("/projects/{project_id}", response_model=Project)
+@app.get("/projects/{project_id}", response_model=schemas.Project)
 def read_project(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
@@ -298,8 +309,8 @@ def read_project(project_id: int, current_user: User = Depends(get_current_user)
     return project
 
 # Task List endpoints
-@app.post("/task-lists/", response_model=TaskList)
-def create_task_list(task_list: TaskListCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+@app.post("/task-lists/", response_model=schemas.TaskList)
+def create_task_list(task_list: schemas.TaskListCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     # Check project access
     project = db.query(Project).filter(Project.id == task_list.project_id).first()
     if not project or current_user not in project.members:
@@ -311,7 +322,7 @@ def create_task_list(task_list: TaskListCreate, current_user: User = Depends(get
     db.refresh(db_task_list)
     return db_task_list
 
-@app.get("/task-lists/", response_model=List[TaskList])
+@app.get("/task-lists/", response_model=List[schemas.TaskList])
 def read_task_lists(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     # Check project access
     project = db.query(Project).filter(Project.id == project_id).first()
@@ -321,8 +332,8 @@ def read_task_lists(project_id: int, current_user: User = Depends(get_current_us
     return db.query(TaskList).filter(TaskList.project_id == project_id, TaskList.is_active == True).order_by(TaskList.position).all()
 
 # Task endpoints
-@app.post("/tasks/", response_model=Task)
-async def create_task(task: TaskCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+@app.post("/tasks/", response_model=schemas.Task)
+async def create_task(task: schemas.TaskCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     # Check project access
     project = db.query(Project).filter(Project.id == task.project_id).first()
     if not project or current_user not in project.members:
@@ -349,7 +360,7 @@ async def create_task(task: TaskCreate, current_user: User = Depends(get_current
     
     return db_task
 
-@app.get("/tasks/", response_model=List[Task])
+@app.get("/tasks/", response_model=List[schemas.Task])
 def read_tasks(
     project_id: Optional[int] = None,
     task_list_id: Optional[int] = None,
@@ -375,7 +386,7 @@ def read_tasks(
     
     return query.order_by(Task.position).all()
 
-@app.get("/tasks/{task_id}", response_model=Task)
+@app.get("/tasks/{task_id}", response_model=schemas.Task)
 def read_task(task_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
@@ -387,8 +398,8 @@ def read_task(task_id: int, current_user: User = Depends(get_current_user), db: 
     
     return task
 
-@app.put("/tasks/{task_id}", response_model=Task)
-async def update_task(task_id: int, task_update: TaskUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+@app.put("/tasks/{task_id}", response_model=schemas.Task)
+async def update_task(task_id: int, task_update: schemas.TaskUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -425,7 +436,7 @@ async def update_task(task_id: int, task_update: TaskUpdate, current_user: User 
     return task
 
 @app.post("/tasks/{task_id}/move")
-async def move_task(task_id: int, move_data: TaskMove, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def move_task(task_id: int, move_data: schemas.TaskMove, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -448,7 +459,7 @@ async def move_task(task_id: int, move_data: TaskMove, current_user: User = Depe
     
     return {"message": "Task moved successfully"}
 
-@app.post("/tasks/{task_id}/archive", response_model=Task)
+@app.post("/tasks/{task_id}/archive", response_model=schemas.Task)
 def archive_task(task_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
@@ -462,7 +473,7 @@ def archive_task(task_id: int, current_user: User = Depends(get_current_user), d
     db.refresh(task)
     return task
 
-@app.post("/tasks/{task_id}/restore", response_model=Task)
+@app.post("/tasks/{task_id}/restore", response_model=schemas.Task)
 def restore_task(task_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
@@ -476,7 +487,7 @@ def restore_task(task_id: int, current_user: User = Depends(get_current_user), d
     db.refresh(task)
     return task
 
-@app.delete("/tasks/{task_id}", response_model=Task)
+@app.delete("/tasks/{task_id}", response_model=schemas.Task)
 def delete_task(task_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
@@ -491,8 +502,8 @@ def delete_task(task_id: int, current_user: User = Depends(get_current_user), db
     return task
 
 # Comment endpoints
-@app.post("/comments/", response_model=Comment)
-async def create_comment(comment: CommentCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+@app.post("/comments/", response_model=schemas.Comment)
+async def create_comment(comment: schemas.CommentCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     # Check task access
     task = db.query(Task).filter(Task.id == comment.task_id).first()
     if not task or current_user not in task.project.members:
@@ -511,7 +522,7 @@ async def create_comment(comment: CommentCreate, current_user: User = Depends(ge
     
     return db_comment
 
-@app.get("/comments/", response_model=List[Comment])
+@app.get("/comments/", response_model=List[schemas.Comment])
 def read_comments(task_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     # Check task access
     task = db.query(Task).filter(Task.id == task_id).first()
@@ -521,7 +532,7 @@ def read_comments(task_id: int, current_user: User = Depends(get_current_user), 
     return db.query(Comment).filter(Comment.task_id == task_id, Comment.is_active == True).order_by(Comment.created_at).all()
 
 # Dashboard endpoint
-@app.get("/dashboard", response_model=DashboardData)
+@app.get("/dashboard", response_model=schemas.DashboardData)
 def get_dashboard(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     # Get user's workspaces
     workspaces = current_user.workspaces
@@ -538,14 +549,14 @@ def get_dashboard(current_user: User = Depends(get_current_user), db: Session = 
     
     # Calculate task summary
     all_user_tasks = db.query(Task).join(Task.assignees).filter(User.id == current_user.id).all()
-    task_summary = TaskSummary(
+    task_summary = schemas.TaskSummary(
         total_tasks=len(all_user_tasks),
         completed_tasks=len([t for t in all_user_tasks if t.status == TaskStatus.DONE]),
         in_progress_tasks=len([t for t in all_user_tasks if t.status == TaskStatus.IN_PROGRESS]),
         overdue_tasks=len([t for t in all_user_tasks if t.due_date and t.due_date < datetime.utcnow() and t.status != TaskStatus.DONE])
     )
     
-    return DashboardData(
+    return schemas.DashboardData(
         workspaces=workspaces,
         recent_projects=recent_projects,
         recent_tasks=recent_tasks,
