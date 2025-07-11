@@ -12,23 +12,22 @@ from typing import List, Optional, Dict, Any
 import asyncio
 import json
 import logging
+import os
 
 from app.models.models import Base, User, Workspace, Project, TaskList, Task, Comment, ActivityLog
 from app.schemas.schemas import *
 
 # Database setup
-SQLALCHEMY_DATABASE_URL = "postgresql://user:password@localhost/clickup_clone"
-# For development, you can use SQLite:
-# SQLALCHEMY_DATABASE_URL = "sqlite:///./clickup_clone.db"
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:password@localhost:5432/clickup_clone")
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Create tables
 Base.metadata.create_all(bind=engine)
 
 # Security
-SECRET_KEY = "your-secret-key-here"  # Change this in production
+SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here")  # Change this in production
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
@@ -118,6 +117,11 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     if user is None:
         raise credentials_exception
     return user
+
+# Health check endpoint
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}
 
 # Authentication endpoints
 @app.post("/auth/register", response_model=User)

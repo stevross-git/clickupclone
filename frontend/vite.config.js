@@ -5,6 +5,15 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: '0.0.0.0',
-    port: 3000
+    port: 3000,
+    watch: {
+      usePolling: true
+    }
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom']
+  },
+  define: {
+    global: 'globalThis'
   }
 })

@@ -176,4 +176,4 @@ function RegisterPage() {
   );
 }
 
-export { LoginPage, RegisterPage };
+export default RegisterPage;
