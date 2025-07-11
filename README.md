@@ -9,6 +9,8 @@ This repository contains a minimal skeleton for a ClickUp-like application. The 
 - New `/tasks/{task_id}/dependencies` routes allow adding or removing task dependencies.
 - Tasks now support a `priority` value (`low`, `medium`, `high`, `urgent`).
 
+- Optional `tag` query parameter filters tasks by tag. Tasks can have a `tags` list.
+
 ## Frontend
 - React application under `frontend/src` demonstrating login, protected routes, list and calendar views.
 

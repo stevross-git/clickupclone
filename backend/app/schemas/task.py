@@ -15,6 +15,7 @@ class TaskBase(BaseModel):
     description: str | None = None
     status: str
     priority: TaskPriority = TaskPriority.MEDIUM
+    tags: List[str] = []
     due_date: date | None = None
 
 class Task(TaskBase):

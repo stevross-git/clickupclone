@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
-from typing import List, Dict
-from datetime import date
 
+from typing import List, Dict, Optional
+from datetime import date
 from app.schemas.task import Task, TaskBase, TaskWithDependencies, TaskLink
 from app.api import deps
 
@@ -14,6 +14,7 @@ FAKE_TASKS = [
         description="Test",
         status="open",
         priority="medium",
+        tags=["backend", "urgent"],
         due_date=date.today(),
     ),
     Task(
@@ -22,6 +23,7 @@ FAKE_TASKS = [
         description="Another",
         status="done",
         priority="high",
+        tags=["frontend"],
         due_date=None,
     ),
 ]
@@ -29,7 +31,12 @@ _next_id = 3
 FAKE_DEPENDENCIES: Dict[int, Dict[str, List[TaskLink]]] = {}
 
 @router.get("/", response_model=List[Task])
-def get_tasks(current_user=Depends(deps.get_current_active_user)):
+def get_tasks(
+    tag: Optional[str] = None,
+    current_user=Depends(deps.get_current_active_user),
+):
+    if tag:
+        return [t for t in FAKE_TASKS if tag in t.tags]
     return FAKE_TASKS
 
 
@@ -81,6 +88,8 @@ def _get_task_with_deps(task_id: int) -> TaskWithDependencies | None:
         title=task.title,
         description=task.description,
         status=task.status,
+        priority=task.priority,
+        tags=task.tags,
         due_date=task.due_date,
         successors=deps.get("successors", []),
         predecessors=deps.get("predecessors", []),
