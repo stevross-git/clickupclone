@@ -29,7 +29,9 @@ target_metadata = Base.metadata
 # ... etc.
 
 def get_url():
-    return os.getenv("DATABASE_URL", "postgresql://user:password@localhost/clickup_clone")
+    return os.getenv(
+        "DATABASE_URL", "postgresql://postgres:password@localhost/clickup_clone"
+    )
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
