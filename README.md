@@ -5,6 +5,8 @@ This repository contains a minimal skeleton for a ClickUp-like application. The 
 ## Backend
 - FastAPI app located in `backend/app` with placeholder authentication and task endpoints.
 - Install dependencies using `pip install -r backend/requirements.txt`.
+- The `requirements.txt` pins `bcrypt==3.2.2` to avoid a startup error caused
+  by newer versions removing `__about__.__version__`.
 - Tasks include a `due_date` field so they can appear in the calendar.
 - New `/tasks/{task_id}/dependencies` routes allow adding or removing task dependencies.
 - Tasks now support a `priority` value (`low`, `medium`, `high`, `urgent`).
