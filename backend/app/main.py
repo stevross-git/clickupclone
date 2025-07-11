@@ -3,7 +3,7 @@ from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconn
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, text, or_
 from sqlalchemy.orm import sessionmaker
 from passlib.context import CryptContext
 from jose import JWTError, jwt
@@ -37,6 +37,25 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
 app = FastAPI(title="ClickUp Clone API", version="1.0.0")
+
+# Create default account on startup
+@app.on_event("startup")
+def create_default_user():
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.username == "steve").first()
+        if not user:
+            hashed = get_password_hash("welcome123")
+            user = User(
+                email="steve@example.com",
+                username="steve",
+                full_name="Steve",
+                hashed_password=hashed,
+            )
+            db.add(user)
+            db.commit()
+    finally:
+        db.close()
 
 # CORS middleware
 app.add_middleware(
@@ -151,7 +170,9 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
 
 @app.post("/auth/token", response_model=Token)
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == form_data.username).first()
+    user = db.query(User).filter(
+        or_(User.email == form_data.username, User.username == form_data.username)
+    ).first()
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
