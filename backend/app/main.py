@@ -18,16 +18,18 @@ from app.models.models import Base, User, Workspace, Project, TaskList, Task, Co
 from app.schemas.schemas import *
 
 # Database setup
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:password@localhost:5432/clickup_clone")
+SQLALCHEMY_DATABASE_URL = "postgresql://user:password@localhost/clickup_clone"
+# For development, you can use SQLite:
+# SQLALCHEMY_DATABASE_URL = "sqlite:///./clickup_clone.db"
 
-engine = create_engine(DATABASE_URL)
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Create tables
 Base.metadata.create_all(bind=engine)
 
 # Security
-SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here")  # Change this in production
+SECRET_KEY = "your-secret-key-here"  # Change this in production
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
