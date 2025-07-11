@@ -149,8 +149,16 @@ class Task(Base):
     task_list = relationship("TaskList", back_populates="tasks")
     creator = relationship("User", foreign_keys=[creator_id], back_populates="created_tasks")
     assignees = relationship("User", secondary=task_assignees, back_populates="assigned_tasks")
-    parent_task = relationship("Task", remote_side=[id])
-    subtasks = relationship("Task", cascade="all, delete-orphan")
+    parent_task = relationship(
+        "Task",
+        remote_side=[id],
+        back_populates="subtasks",
+    )
+    subtasks = relationship(
+        "Task",
+        back_populates="parent_task",
+        cascade="all, delete-orphan",
+    )
     comments = relationship("Comment", back_populates="task", cascade="all, delete-orphan")
     dependencies = relationship("TaskDependency", foreign_keys="TaskDependency.task_id", back_populates="task")
     blocking = relationship("TaskDependency", foreign_keys="TaskDependency.depends_on_id", back_populates="depends_on_task")
@@ -182,8 +190,16 @@ class Comment(Base):
     # Relationships
     task = relationship("Task", back_populates="comments")
     author = relationship("User", back_populates="comments")
-    parent_comment = relationship("Comment", remote_side=[id])
-    replies = relationship("Comment", cascade="all, delete-orphan")
+    parent_comment = relationship(
+        "Comment",
+        remote_side=[id],
+        back_populates="replies",
+    )
+    replies = relationship(
+        "Comment",
+        back_populates="parent_comment",
+        cascade="all, delete-orphan",
+    )
 
 class ActivityLog(Base):
     __tablename__ = "activity_logs"
