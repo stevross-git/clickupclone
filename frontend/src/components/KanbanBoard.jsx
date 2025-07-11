@@ -6,7 +6,6 @@ import apiClient from '../services/api';
 import TaskCard from './TaskCard';
 import CreateTaskModal from './CreateTaskModal';
 import { useNotification } from '../contexts/NotificationContext';
-import { useRealTimeUpdates } from '../hooks/useRealTimeUpdates';
 
 function KanbanBoard({ projectId }) {
   const [lists, setLists] = useState([]);
@@ -20,23 +19,6 @@ function KanbanBoard({ projectId }) {
     fetchLists();
     fetchTasks();
   }, [projectId]);
-
-  // Real-time updates
-  const handleRealTimeUpdate = (type, data) => {
-    switch (type) {
-      case 'created':
-      case 'updated':
-        fetchTasks();
-        break;
-      case 'moved':
-        fetchTasks();
-        break;
-      default:
-        break;
-    }
-  };
-
-  useRealTimeUpdates(projectId, handleRealTimeUpdate);
 
   const fetchLists = async () => {
     try {

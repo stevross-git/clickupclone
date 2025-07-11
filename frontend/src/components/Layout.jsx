@@ -6,7 +6,7 @@ import Header from './Header';
 
 function Layout() {
   return (
-    <div className="h-screen flex bg-gray-50">
+    <div className="h-screen flex bg-gray-100">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />

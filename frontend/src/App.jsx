@@ -4,11 +4,11 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './contexts/AuthContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import ProtectedRoute from './components/ProtectedRoute';
-import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import Dashboard from './pages/Dashboard';
 import ProjectView from './pages/ProjectView';
+import Layout from './components/Layout';
 
 function App() {
   return (
@@ -16,16 +16,16 @@ function App() {
       <NotificationProvider>
         <Router>
           <Routes>
-            {/* Public Routes */}
+            {/* Public routes */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             
-            {/* Protected Routes */}
+            {/* Protected routes */}
             <Route path="/" element={<ProtectedRoute />}>
               <Route path="/" element={<Layout />}>
-                <Route index element={<Navigate to="/dashboard" replace />} />
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="project/:projectId" element={<ProjectView />} />
+                <Route index element={<Navigate to="/dashboard" replace />} />
               </Route>
             </Route>
           </Routes>

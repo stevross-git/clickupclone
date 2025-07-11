@@ -9,8 +9,8 @@ import {
 } from '@heroicons/react/24/outline';
 import apiClient from '../services/api';
 import KanbanBoard from '../components/KanbanBoard';
-import ListView from './ListView';
-import CalendarView from './CalendarView';
+import ListView from '../components/ListView';
+import CalendarView from '../components/CalendarView';
 import { useNotification } from '../contexts/NotificationContext';
 
 const VIEW_TYPES = {
@@ -53,12 +53,9 @@ function ProjectView() {
         return <CalendarView projectId={parseInt(projectId)} />;
       case VIEW_TYPES.GANTT:
         return (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <ChartBarIcon className="h-16 w-16 mx-auto text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Gantt View</h3>
-              <p className="text-gray-500">Coming soon...</p>
-            </div>
+          <div className="p-8 text-center">
+            <ChartBarIcon className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+            <p className="text-gray-500">Gantt view coming soon...</p>
           </div>
         );
       default:
@@ -76,11 +73,8 @@ function ProjectView() {
 
   if (!project) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Project not found</h3>
-          <p className="text-gray-500">The project you're looking for doesn't exist.</p>
-        </div>
+      <div className="p-8 text-center">
+        <p className="text-gray-500">Project not found</p>
       </div>
     );
   }
@@ -98,15 +92,15 @@ function ProjectView() {
               {project.name.charAt(0).toUpperCase()}
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{project.name}</h1>
+              <h1 className="text-xl font-semibold text-gray-900">{project.name}</h1>
               {project.description && (
-                <p className="text-gray-600">{project.description}</p>
+                <p className="text-sm text-gray-600">{project.description}</p>
               )}
             </div>
           </div>
 
           {/* View Switcher */}
-          <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
+          <div className="flex bg-gray-100 rounded-lg p-1">
             <button
               onClick={() => setCurrentView(VIEW_TYPES.BOARD)}
               className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
