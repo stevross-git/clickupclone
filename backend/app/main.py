@@ -13,8 +13,8 @@ import asyncio
 import json
 import logging
 
-from models import Base, User, Workspace, Project, TaskList, Task, Comment, ActivityLog
-from schemas import *
+from app.models.models import Base, User, Workspace, Project, TaskList, Task, Comment, ActivityLog
+from app.schemas.schemas import *
 
 # Database setup
 SQLALCHEMY_DATABASE_URL = "postgresql://user:password@localhost/clickup_clone"
@@ -33,7 +33,7 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
 app = FastAPI(title="ClickUp Clone API", version="1.0.0")
 
@@ -111,7 +111,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
         username: str = payload.get("sub")
         if username is None:
             raise credentials_exception
-        token_data = TokenPayload(sub=username)
+        token_data = TokenPayload(sub=int(username))
     except JWTError:
         raise credentials_exception
     user = db.query(User).filter(User.id == token_data.sub).first()
@@ -292,7 +292,7 @@ def read_task_lists(project_id: int, current_user: User = Depends(get_current_us
 
 # Task endpoints
 @app.post("/tasks/", response_model=Task)
-def create_task(task: TaskCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def create_task(task: TaskCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     # Check project access
     project = db.query(Project).filter(Project.id == task.project_id).first()
     if not project or current_user not in project.members:
@@ -354,7 +354,7 @@ def read_task(task_id: int, current_user: User = Depends(get_current_user), db: 
     return task
 
 @app.put("/tasks/{task_id}", response_model=Task)
-def update_task(task_id: int, task_update: TaskUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def update_task(task_id: int, task_update: TaskUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -391,7 +391,7 @@ def update_task(task_id: int, task_update: TaskUpdate, current_user: User = Depe
     return task
 
 @app.post("/tasks/{task_id}/move")
-def move_task(task_id: int, move_data: TaskMove, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def move_task(task_id: int, move_data: TaskMove, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -414,9 +414,23 @@ def move_task(task_id: int, move_data: TaskMove, current_user: User = Depends(ge
     
     return {"message": "Task moved successfully"}
 
+@app.delete("/tasks/{task_id}", response_model=Task)
+def delete_task(task_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    # Check project access
+    if current_user not in task.project.members:
+        raise HTTPException(status_code=403, detail="Not a member of this project")
+    
+    db.delete(task)
+    db.commit()
+    return task
+
 # Comment endpoints
 @app.post("/comments/", response_model=Comment)
-def create_comment(comment: CommentCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def create_comment(comment: CommentCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     # Check task access
     task = db.query(Task).filter(Task.id == comment.task_id).first()
     if not task or current_user not in task.project.members:
