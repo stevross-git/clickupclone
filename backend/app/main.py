@@ -204,6 +204,23 @@ def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
 
 # User endpoints
+@app.get("/users/me", response_model=schemas.User)
+def read_user_me(current_user: User = Depends(get_current_user)):
+    return current_user
+
+@app.put("/users/me", response_model=schemas.User)
+def update_user_me(
+    user_update: schemas.UserUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    update_data = user_update.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(current_user, key, value)
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
 @app.get("/users/", response_model=List[schemas.User])
 def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     users = db.query(User).offset(skip).limit(limit).all()

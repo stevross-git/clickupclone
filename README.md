@@ -12,9 +12,11 @@ This repository contains a minimal skeleton for a ClickUp-like application. The 
 - Tasks now support a `priority` value (`low`, `medium`, `high`, `urgent`).
 - Optional `tag` query parameter filters tasks by tag. Tasks can have a `tags` list.
 - Tasks can now be archived and restored. Archived tasks are hidden from default queries.
+- `/users/me` endpoint allows fetching and updating the authenticated user's profile.
 
 ## Frontend
 - React application under `frontend/src` demonstrating login, protected routes, list and calendar views.
 - Tasks on the board include an archive button that hides them without deletion.
+- New profile page lets users edit their full name and avatar.
 
 This code is a lightweight starting point that can be expanded with full database models and advanced features.

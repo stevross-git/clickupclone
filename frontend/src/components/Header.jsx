@@ -81,7 +81,7 @@ function Header() {
                 <button
                   onClick={() => {
                     setShowUserMenu(false);
-                    // Navigate to profile
+                    navigate('/profile');
                   }}
                   className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                 >
