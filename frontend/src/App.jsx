@@ -9,6 +9,7 @@ import RegisterPage from './pages/RegisterPage';
 import Dashboard from './pages/Dashboard';
 import ProjectView from './pages/ProjectView';
 import Layout from './components/Layout';
+import TimeTracking from './pages/TimeTracking';
 
 // Placeholder components for missing routes
 const InboxPage = () => (
@@ -25,12 +26,6 @@ const CalendarPage = () => (
   </div>
 );
 
-const TimeTrackingPage = () => (
-  <div className="p-8 text-center">
-    <h1 className="text-2xl font-bold text-gray-900 mb-4">Time Tracking</h1>
-    <p className="text-gray-600">Time tracking functionality coming soon...</p>
-  </div>
-);
 
 const ReportsPage = () => (
   <div className="p-8 text-center">
@@ -55,7 +50,7 @@ function App() {
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="inbox" element={<InboxPage />} />
                 <Route path="calendar" element={<CalendarPage />} />
-                <Route path="time-tracking" element={<TimeTrackingPage />} />
+                <Route path="time-tracking" element={<TimeTracking />} />
                 <Route path="reports" element={<ReportsPage />} />
                 <Route path="project/:projectId" element={<ProjectView />} />
                 <Route index element={<Navigate to="/dashboard" replace />} />
@@ -69,3 +64,4 @@ function App() {
 }
 
 export default App;
+
