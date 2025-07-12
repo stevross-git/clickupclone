@@ -188,19 +188,29 @@ function Sidebar() {
               {!isCollapsed && <span>Calendar</span>}
             </div>
 
-            <div
-              className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-not-allowed opacity-50`}
+            <Link
+              to="/time-tracking"
+              className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                location.pathname === '/time-tracking'
+                  ? 'bg-purple-100 text-purple-700'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
             >
               <ClockIcon className="h-5 w-5" />
               {!isCollapsed && <span>Time Tracking</span>}
-            </div>
+            </Link>
 
-            <div
-              className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-not-allowed opacity-50`}
+            <Link
+              to="/goals"
+              className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                location.pathname === '/goals'
+                  ? 'bg-purple-100 text-purple-700'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
             >
               <ChartBarIcon className="h-5 w-5" />
-              {!isCollapsed && <span>Reports</span>}
-            </div>
+              {!isCollapsed && <span>Goals</span>}
+            </Link>
           </div>
 
           {/* Workspaces Section */}

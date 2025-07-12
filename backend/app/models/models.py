@@ -276,3 +276,22 @@ class Attachment(Base):
 
     task = relationship("Task", back_populates="attachments")
 
+# Goals allow tracking high level objectives within a workspace
+class Goal(Base):
+    __tablename__ = "goals"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    description = Column(Text)
+    workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=False)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    due_date = Column(DateTime(timezone=True))
+    progress = Column(Float, default=0.0)
+    is_completed = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    workspace = relationship("Workspace")
+    owner = relationship("User")
+
+
