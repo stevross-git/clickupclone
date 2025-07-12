@@ -44,7 +44,7 @@
   }
 
   .btn-primary {
-    @apply btn bg-purple-600 text-white hover:bg-purple-700 focus:ring-purple-500;
+    @apply btn bg-gradient-to-r from-brand-purple to-brand-pink text-white hover:opacity-90 focus:ring-brand-purple;
   }
 
   .btn-secondary {

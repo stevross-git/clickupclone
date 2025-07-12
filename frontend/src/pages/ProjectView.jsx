@@ -9,6 +9,8 @@ import {
   PlusIcon
 } from '@heroicons/react/24/outline';
 import { useNotification } from '../contexts/NotificationContext';
+import CalendarView from './CalendarView';
+import GanttView from './GanttView';
 
 const VIEW_TYPES = {
   BOARD: 'board',
@@ -161,24 +163,6 @@ function ListView({ projectId }) {
   );
 }
 
-function CalendarView({ projectId }) {
-  return (
-    <div className="p-6 h-full">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 h-full">
-        <div className="p-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Task Calendar</h2>
-          <p className="text-sm text-gray-600">Calendar view coming soon...</p>
-        </div>
-        <div className="p-4 h-96 flex items-center justify-center">
-          <div className="text-center">
-            <CalendarIcon className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-            <p className="text-gray-500">Calendar functionality will be implemented here</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function ProjectView() {
   const { projectId } = useParams();
@@ -227,12 +211,7 @@ function ProjectView() {
       case VIEW_TYPES.CALENDAR:
         return <CalendarView projectId={parseInt(projectId)} />;
       case VIEW_TYPES.GANTT:
-        return (
-          <div className="p-8 text-center">
-            <ChartBarIcon className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-            <p className="text-gray-500">Gantt view coming soon...</p>
-          </div>
-        );
+        return <GanttView projectId={parseInt(projectId)} />;
       default:
         return <KanbanBoard projectId={parseInt(projectId)} />;
     }

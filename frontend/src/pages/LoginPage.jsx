@@ -61,7 +61,7 @@ const LoginPage = () => {
         {/* Header */}
         <div>
           <div className="flex justify-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-r from-purple-600 to-blue-600">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-r from-brand-purple to-brand-pink">
               <DocumentTextIcon className="h-8 w-8 text-white" />
             </div>
           </div>

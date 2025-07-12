@@ -107,7 +107,7 @@ const Sidebar = ({ open, onClose }) => {
           {/* Header / logo */}
           <div className="flex h-16 items-center justify-between border-b border-gray-200 px-6">
             <Link to="/dashboard" className="flex items-center space-x-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-r from-purple-600 to-blue-600">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-r from-brand-purple to-brand-pink">
                 <DocumentTextIcon className="h-5 w-5 text-white" />
               </div>
               <span className="text-xl font-bold text-gray-900">ClickUp&nbsp;Clone</span>

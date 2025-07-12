@@ -12,56 +12,12 @@ import ProfilePage from './pages/ProfilePage';
 import Layout from './components/Layout';
 import TimeTracking from './pages/TimeTracking';
 import Goals from './pages/Goals';
-
-// Placeholder components for missing routes
-const InboxPage = () => (
-  <div className="p-8 text-center">
-    <h1 className="mb-4 text-2xl font-bold text-gray-900">Inbox</h1>
-    <p className="text-gray-600">Inbox functionality coming soon...</p>
-  </div>
-);
-
-const CalendarPage = () => (
-  <div className="p-8 text-center">
-    <h1 className="mb-4 text-2xl font-bold text-gray-900">Calendar</h1>
-    <p className="text-gray-600">Calendar functionality coming soon...</p>
-  </div>
-);
-
-const GoalsPage = () => (
-  <div className="p-8 text-center">
-    <h1 className="mb-4 text-2xl font-bold text-gray-900">Goals</h1>
-    <p className="text-gray-600">Goals functionality coming soon...</p>
-  </div>
-);
-
-const ReportsPage = () => (
-  <div className="p-8 text-center">
-    <h1 className="mb-4 text-2xl font-bold text-gray-900">Reports</h1>
-    <p className="text-gray-600">Reports functionality coming soon...</p>
-  </div>
-);
-
-const NotificationsPage = () => (
-  <div className="p-8 text-center">
-    <h1 className="mb-4 text-2xl font-bold text-gray-900">Notifications</h1>
-    <p className="text-gray-600">Notifications functionality coming soon...</p>
-  </div>
-);
-
-const SettingsPage = () => (
-  <div className="p-8 text-center">
-    <h1 className="mb-4 text-2xl font-bold text-gray-900">Settings</h1>
-    <p className="text-gray-600">Settings functionality coming soon...</p>
-  </div>
-);
-
-const WorkspaceView = () => (
-  <div className="p-8 text-center">
-    <h1 className="mb-4 text-2xl font-bold text-gray-900">Workspace View</h1>
-    <p className="text-gray-600">Workspace view functionality coming soon...</p>
-  </div>
-);
+import InboxPage from './pages/InboxPage';
+import CalendarPage from './pages/CalendarPage';
+import ReportsPage from './pages/ReportsPage';
+import NotificationsPage from './pages/NotificationsPage';
+import SettingsPage from './pages/SettingsPage';
+import WorkspaceView from './pages/WorkspaceView';
 
 function App() {
   return (

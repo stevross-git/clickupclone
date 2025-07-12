@@ -26,7 +26,7 @@
 
 @layer components {
   .btn-primary {
-    @apply bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors;
+    @apply bg-gradient-to-r from-brand-purple to-brand-pink text-white font-medium py-2 px-4 rounded-lg transition-opacity hover:opacity-90;
   }
   
   .btn-secondary {
