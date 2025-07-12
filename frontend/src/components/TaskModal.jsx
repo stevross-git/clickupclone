@@ -33,9 +33,21 @@ const TaskModal = ({ task, onClose }) => {
 
   return (
     <div>
-      <input value={title} onChange={e => setTitle(e.target.value)} />
+      <label htmlFor="task-modal-title">Title</label>
       <input
+        id="task-modal-title"
+        name="title"
+        type="text"
+        autoComplete="off"
+        value={title}
+        onChange={e => setTitle(e.target.value)}
+      />
+      <label htmlFor="task-modal-due-date">Due Date</label>
+      <input
+        id="task-modal-due-date"
+        name="due_date"
         type="date"
+        autoComplete="off"
         value={dueDate}
         onChange={e => setDueDate(e.target.value)}
       />
