@@ -70,7 +70,7 @@ const Header = ({ onMenuClick }) => {
   const recentNotifications = notifications.slice(0, 5);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-gray-200 bg-white px-4 py-4 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-40 bg-gradient-to-r from-brand-purple to-brand-pink px-4 py-4 text-white sm:px-6 lg:px-8">
       <div className="flex items-center justify-between">
         {/* Left side */}
 

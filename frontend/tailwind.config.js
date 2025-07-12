@@ -43,7 +43,9 @@ export default {
           700: '#374151',
           800: '#1f2937',
           900: '#111827',
-        }
+        },
+        'brand-purple': '#7b68ee',
+        'brand-pink': '#ff37f0'
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

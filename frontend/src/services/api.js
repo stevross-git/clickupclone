@@ -198,6 +198,20 @@ const apiService = {
     return response.data;
   },
 
+  // User settings
+  async updateUser(userData) {
+    const response = await apiClient.put('/api/v1/users/me', userData);
+    return response.data;
+  },
+
+  async changePassword(currentPassword, newPassword) {
+    const response = await apiClient.post('/api/v1/auth/change-password', {
+      current_password: currentPassword,
+      new_password: newPassword,
+    });
+    return response.data;
+  },
+
   // Goals methods
   async createGoal(goalData) {
     const response = await apiClient.post('/api/v1/goals/', goalData);
