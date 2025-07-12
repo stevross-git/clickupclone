@@ -9,6 +9,7 @@ from fastapi import (
     status,
     UploadFile,
     File,
+    APIRouter,
 )
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
@@ -55,13 +56,21 @@ TimeEntry = models.TimeEntry
 Attachment = models.Attachment
 TaskStatus = models.TaskStatus
 TaskPriority = models.TaskPriority
+Goal = models.Goal
 
 
 # Create tables
 Base.metadata.create_all(bind=engine)
 
 # Security
+<<<<<<< HEAD
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/token")
+=======
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl=f"{settings.API_V1_STR}/auth/token"
+)
+>>>>>>> 5cd483dc5dc7ef33d3efcd4f99cf6bff949883e2
 
 app = FastAPI(title="ClickUp Clone API", version="1.0.0")
 
@@ -114,7 +123,74 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+<<<<<<< HEAD
 # Database dependency
+=======
+# Router for API endpoints
+api_router = APIRouter()
+
+# Create default account on startup
+@app.on_event("startup")
+def create_default_user():
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.username == "steve").first()
+        if not user:
+            hashed = get_password_hash("welcome123")
+            user = User(
+                email="steve@example.com",
+                username="steve",
+                full_name="Steve Johnson",
+                hashed_password=hashed,
+            )
+            db.add(user)
+            db.commit()
+            
+            # Create default workspace
+            workspace = Workspace(
+                name="Personal Workspace",
+                description="Default workspace for projects",
+                owner_id=user.id
+            )
+            db.add(workspace)
+            db.commit()
+            db.refresh(workspace)
+            
+            # Add user as member
+            workspace.members.append(user)
+            db.commit()
+            
+            # Create sample project
+            project = Project(
+                name="Sample Project",
+                description="Getting started with project management",
+                workspace_id=workspace.id,
+                owner_id=user.id,
+                color="#7c3aed"
+            )
+            db.add(project)
+            db.commit()
+            db.refresh(project)
+            
+            # Add user as member
+            project.members.append(user)
+            db.commit()
+            
+            print("Default user created: steve@example.com / welcome123")
+    finally:
+        db.close()
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Dependency
+>>>>>>> 5cd483dc5dc7ef33d3efcd4f99cf6bff949883e2
 def get_db():
     db = SessionLocal()
     try:
@@ -142,6 +218,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
         raise credentials_exception
     return user
 
+<<<<<<< HEAD
 def authenticate_user(db: Session, username: str, password: str):
     user = db.query(User).filter(
         or_(User.username == username, User.email == username)
@@ -177,6 +254,29 @@ async def create_notification(db: Session, user_id: int, title: str, message: st
     )
     db.add(notification)
     db.commit()
+=======
+# Auth endpoints
+@api_router.post("/auth/token", response_model=schemas.Token)
+async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == form_data.username).first()
+    if not user or not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@api_router.post("/auth/register", response_model=schemas.User)
+def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    db_user = db.query(User).filter(User.email == user.email).first()
+    if db_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+>>>>>>> 5cd483dc5dc7ef33d3efcd4f99cf6bff949883e2
     
     # Send real-time notification
     await manager.broadcast_to_room({
@@ -220,6 +320,7 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     
     return db_user
 
+<<<<<<< HEAD
 @app.post("/api/v1/auth/token", response_model=schemas.Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = authenticate_user(db, form_data.username, form_data.password)
@@ -232,6 +333,27 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     
     # Update last login
     user.last_login = datetime.utcnow()
+=======
+@api_router.get("/auth/me", response_model=schemas.User)
+def read_users_me(current_user: User = Depends(get_current_user)):
+    return current_user
+
+
+# User endpoints
+@api_router.get("/users/me", response_model=schemas.User)
+def read_user_me(current_user: User = Depends(get_current_user)):
+    return current_user
+
+@api_router.put("/users/me", response_model=schemas.User)
+def update_user_me(
+    user_update: schemas.UserUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    update_data = user_update.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(current_user, key, value)
+>>>>>>> 5cd483dc5dc7ef33d3efcd4f99cf6bff949883e2
     db.commit()
     
     access_token = create_access_token(subject=user.username)
@@ -241,6 +363,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 def read_current_user(current_user: User = Depends(get_current_user)):
     return current_user
 
+<<<<<<< HEAD
 # ========== DASHBOARD ENDPOINTS ==========
 
 @app.get("/api/v1/dashboard", response_model=schemas.DashboardData)
@@ -322,11 +445,30 @@ def get_dashboard(current_user: User = Depends(get_current_user), db: Session = 
         recent_tasks=recent_tasks,
         task_summary=task_summary
     )
+=======
+@api_router.get("/users/", response_model=List[schemas.User])
+def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    users = db.query(User).offset(skip).limit(limit).all()
+    return users
+
+@api_router.get("/users/{user_id}", response_model=schemas.User)
+def read_user(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+>>>>>>> 5cd483dc5dc7ef33d3efcd4f99cf6bff949883e2
 
 # ========== WORKSPACE ENDPOINTS ==========
 
+<<<<<<< HEAD
 @app.post("/api/v1/workspaces/", response_model=schemas.Workspace)
 async def create_workspace(workspace: schemas.WorkspaceCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+=======
+# Workspace endpoints
+@api_router.post("/workspaces/", response_model=schemas.Workspace)
+def create_workspace(workspace: schemas.WorkspaceCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+>>>>>>> 5cd483dc5dc7ef33d3efcd4f99cf6bff949883e2
     db_workspace = Workspace(
         **workspace.dict(),
         owner_id=current_user.id
@@ -343,7 +485,11 @@ async def create_workspace(workspace: schemas.WorkspaceCreate, current_user: Use
     
     return db_workspace
 
+<<<<<<< HEAD
 @app.get("/api/v1/workspaces/", response_model=List[schemas.Workspace])
+=======
+@api_router.get("/workspaces/", response_model=List[schemas.Workspace])
+>>>>>>> 5cd483dc5dc7ef33d3efcd4f99cf6bff949883e2
 def read_workspaces(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return db.query(Workspace).filter(
         or_(
@@ -355,7 +501,11 @@ def read_workspaces(current_user: User = Depends(get_current_user), db: Session 
         joinedload(Workspace.members)
     ).all()
 
+<<<<<<< HEAD
 @app.get("/api/v1/workspaces/{workspace_id}", response_model=schemas.Workspace)
+=======
+@api_router.get("/workspaces/{workspace_id}", response_model=schemas.Workspace)
+>>>>>>> 5cd483dc5dc7ef33d3efcd4f99cf6bff949883e2
 def read_workspace(workspace_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     workspace = db.query(Workspace).filter(Workspace.id == workspace_id).options(
         joinedload(Workspace.owner),
@@ -371,10 +521,16 @@ def read_workspace(workspace_id: int, current_user: User = Depends(get_current_u
     
     return workspace
 
+<<<<<<< HEAD
 # ========== PROJECT ENDPOINTS ==========
 
 @app.post("/api/v1/projects/", response_model=schemas.Project)
 async def create_project(project: schemas.ProjectCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+=======
+# Project endpoints
+@api_router.post("/projects/", response_model=schemas.Project)
+def create_project(project: schemas.ProjectCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+>>>>>>> 5cd483dc5dc7ef33d3efcd4f99cf6bff949883e2
     # Check workspace access
     workspace = db.query(Workspace).filter(Workspace.id == project.workspace_id).first()
     if not workspace or (current_user not in workspace.members and workspace.owner_id != current_user.id):
@@ -415,7 +571,11 @@ async def create_project(project: schemas.ProjectCreate, current_user: User = De
     
     return db_project
 
+<<<<<<< HEAD
 @app.get("/api/v1/projects/", response_model=List[schemas.Project])
+=======
+@api_router.get("/projects/", response_model=List[schemas.Project])
+>>>>>>> 5cd483dc5dc7ef33d3efcd4f99cf6bff949883e2
 def read_projects(workspace_id: Optional[int] = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     query = db.query(Project).filter(
         or_(
@@ -433,7 +593,11 @@ def read_projects(workspace_id: Optional[int] = None, current_user: User = Depen
     
     return query.all()
 
+<<<<<<< HEAD
 @app.get("/api/v1/projects/{project_id}", response_model=schemas.Project)
+=======
+@api_router.get("/projects/{project_id}", response_model=schemas.Project)
+>>>>>>> 5cd483dc5dc7ef33d3efcd4f99cf6bff949883e2
 def read_project(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == project_id).options(
         joinedload(Project.workspace),
@@ -450,10 +614,45 @@ def read_project(project_id: int, current_user: User = Depends(get_current_user)
     
     return project
 
+<<<<<<< HEAD
 # ========== TASK LIST ENDPOINTS ==========
 
 @app.post("/api/v1/task-lists/", response_model=schemas.TaskList)
 async def create_task_list(task_list: schemas.TaskListCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+=======
+@api_router.put("/projects/{project_id}", response_model=schemas.Project)
+def update_project(project_id: int, project_update: schemas.ProjectUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    if current_user not in project.members:
+        raise HTTPException(status_code=403, detail="Not a member of this project")
+    
+    for key, value in project_update.dict(exclude_unset=True).items():
+        setattr(project, key, value)
+    
+    db.commit()
+    db.refresh(project)
+    return project
+
+@api_router.delete("/projects/{project_id}")
+def delete_project(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    if project.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only project owner can delete")
+    
+    db.delete(project)
+    db.commit()
+    return {"message": "Project deleted successfully"}
+
+# Task List endpoints
+@api_router.post("/task-lists/", response_model=schemas.TaskList)
+def create_task_list(task_list: schemas.TaskListCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+>>>>>>> 5cd483dc5dc7ef33d3efcd4f99cf6bff949883e2
     # Check project access
     project = db.query(Project).filter(Project.id == task_list.project_id).first()
     if not project or (current_user not in project.members and project.owner_id != current_user.id):
@@ -468,7 +667,11 @@ async def create_task_list(task_list: schemas.TaskListCreate, current_user: User
     
     return db_task_list
 
+<<<<<<< HEAD
 @app.get("/api/v1/task-lists/", response_model=List[schemas.TaskList])
+=======
+@api_router.get("/task-lists/", response_model=List[schemas.TaskList])
+>>>>>>> 5cd483dc5dc7ef33d3efcd4f99cf6bff949883e2
 def read_task_lists(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     # Check project access
     project = db.query(Project).filter(Project.id == project_id).first()
@@ -480,9 +683,14 @@ def read_task_lists(project_id: int, current_user: User = Depends(get_current_us
         TaskList.is_active == True
     ).order_by(TaskList.position).all()
 
+<<<<<<< HEAD
 # ========== TASK ENDPOINTS ==========
 
 @app.post("/api/v1/tasks/", response_model=schemas.Task)
+=======
+# Task endpoints
+@api_router.post("/tasks/", response_model=schemas.Task)
+>>>>>>> 5cd483dc5dc7ef33d3efcd4f99cf6bff949883e2
 async def create_task(task: schemas.TaskCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     # Check project access
     project = db.query(Project).filter(Project.id == task.project_id).first()
@@ -528,7 +736,11 @@ async def create_task(task: schemas.TaskCreate, current_user: User = Depends(get
     
     return db_task
 
+<<<<<<< HEAD
 @app.get("/api/v1/tasks/", response_model=List[schemas.Task])
+=======
+@api_router.get("/tasks/", response_model=List[schemas.Task])
+>>>>>>> 5cd483dc5dc7ef33d3efcd4f99cf6bff949883e2
 def read_tasks(
     project_id: Optional[int] = None,
     task_list_id: Optional[int] = None,
@@ -571,7 +783,11 @@ def read_tasks(
     
     return query.order_by(Task.position, Task.created_at).all()
 
+<<<<<<< HEAD
 @app.get("/api/v1/tasks/{task_id}", response_model=schemas.Task)
+=======
+@api_router.get("/tasks/{task_id}", response_model=schemas.Task)
+>>>>>>> 5cd483dc5dc7ef33d3efcd4f99cf6bff949883e2
 def read_task(task_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     task = db.query(Task).filter(Task.id == task_id).options(
         joinedload(Task.creator),
@@ -664,7 +880,7 @@ async def create_time_entry(time_entry: schemas.TimeEntryCreate, current_user: U
     return task
 
 # Time entry endpoints
-@app.post("/tasks/{task_id}/time-entries", response_model=schemas.TimeEntry)
+@api_router.post("/tasks/{task_id}/time-entries", response_model=schemas.TimeEntry)
 def create_time_entry(task_id: int, entry: schemas.TimeEntryCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task or current_user not in task.project.members:
@@ -682,7 +898,7 @@ def create_time_entry(task_id: int, entry: schemas.TimeEntryCreate, current_user
     db.refresh(db_entry)
     return db_entry
 
-@app.get("/tasks/{task_id}/time-entries", response_model=List[schemas.TimeEntry])
+@api_router.get("/tasks/{task_id}/time-entries", response_model=List[schemas.TimeEntry])
 def read_time_entries(task_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task or current_user not in task.project.members:
@@ -690,7 +906,7 @@ def read_time_entries(task_id: int, current_user: User = Depends(get_current_use
     return task.time_entries
 
 # Attachment endpoints
-@app.post("/tasks/{task_id}/attachments", response_model=schemas.Attachment)
+@api_router.post("/tasks/{task_id}/attachments", response_model=schemas.Attachment)
 async def upload_attachment(task_id: int, file: UploadFile = File(...), current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task or current_user not in task.project.members:
@@ -707,7 +923,7 @@ async def upload_attachment(task_id: int, file: UploadFile = File(...), current_
     db.refresh(attachment)
     return attachment
 
-@app.get("/tasks/{task_id}/attachments", response_model=List[schemas.Attachment])
+@api_router.get("/tasks/{task_id}/attachments", response_model=List[schemas.Attachment])
 def get_attachments(task_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task or current_user not in task.project.members:
@@ -715,7 +931,7 @@ def get_attachments(task_id: int, current_user: User = Depends(get_current_user)
     return task.attachments
 
 # Custom field endpoints
-@app.post("/custom-fields", response_model=schemas.CustomField)
+@api_router.post("/custom-fields", response_model=schemas.CustomField)
 def create_custom_field(field: schemas.CustomFieldCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     db_field = CustomField(**field.dict())
     db.add(db_field)
@@ -723,14 +939,14 @@ def create_custom_field(field: schemas.CustomFieldCreate, current_user: User = D
     db.refresh(db_field)
     return db_field
 
-@app.get("/custom-fields", response_model=List[schemas.CustomField])
+@api_router.get("/custom-fields", response_model=List[schemas.CustomField])
 def read_custom_fields(workspace_id: Optional[int] = None, db: Session = Depends(get_db)):
     query = db.query(CustomField)
     if workspace_id:
         query = query.filter(CustomField.workspace_id == workspace_id)
     return query.all()
 
-@app.post("/tasks/{task_id}/custom-fields/{field_id}", response_model=schemas.TaskCustomFieldValue)
+@api_router.post("/tasks/{task_id}/custom-fields/{field_id}", response_model=schemas.TaskCustomFieldValue)
 def set_custom_field_value(task_id: int, field_id: int, value: Dict[str, Any], current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task or current_user not in task.project.members:
@@ -741,16 +957,68 @@ def set_custom_field_value(task_id: int, field_id: int, value: Dict[str, Any], c
     db.refresh(db_value)
     return db_value
 
-@app.get("/tasks/{task_id}/custom-fields", response_model=List[schemas.TaskCustomFieldValue])
+@api_router.get("/tasks/{task_id}/custom-fields", response_model=List[schemas.TaskCustomFieldValue])
 def get_custom_field_values(task_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task or current_user not in task.project.members:
         raise HTTPException(status_code=404, detail="Task not found")
     return task.custom_field_values
 
+# Goal endpoints
+@api_router.post("/goals/", response_model=schemas.Goal)
+def create_goal(goal: schemas.GoalCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    workspace = db.query(Workspace).filter(Workspace.id == goal.workspace_id).first()
+    if not workspace or current_user not in workspace.members:
+        raise HTTPException(status_code=403, detail="Not a member of this workspace")
+
+    db_goal = Goal(**goal.dict(), owner_id=current_user.id)
+    db.add(db_goal)
+    db.commit()
+    db.refresh(db_goal)
+    return db_goal
+
+@api_router.get("/goals/", response_model=List[schemas.Goal])
+def read_goals(workspace_id: Optional[int] = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    query = db.query(Goal).join(Workspace).join(Workspace.members).filter(User.id == current_user.id)
+    if workspace_id:
+        query = query.filter(Goal.workspace_id == workspace_id)
+    return query.all()
+
+@api_router.get("/goals/{goal_id}", response_model=schemas.Goal)
+def read_goal(goal_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    goal = db.query(Goal).filter(Goal.id == goal_id).first()
+    if not goal or current_user not in goal.workspace.members:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    return goal
+
+@api_router.put("/goals/{goal_id}", response_model=schemas.Goal)
+def update_goal(goal_id: int, goal_update: schemas.GoalUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    goal = db.query(Goal).filter(Goal.id == goal_id).first()
+    if not goal or current_user not in goal.workspace.members:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    for key, value in goal_update.dict(exclude_unset=True).items():
+        setattr(goal, key, value)
+    db.commit()
+    db.refresh(goal)
+    return goal
+
+@api_router.delete("/goals/{goal_id}")
+def delete_goal(goal_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    goal = db.query(Goal).filter(Goal.id == goal_id).first()
+    if not goal or current_user not in goal.workspace.members:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    db.delete(goal)
+    db.commit()
+    return {"detail": "Goal deleted"}
+
 # Dashboard endpoint
+<<<<<<< HEAD
 @app.get("/dashboard", response_model=schemas.DashboardData)
 async def get_dashboard(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+=======
+@api_router.get("/dashboard", response_model=schemas.DashboardData)
+def get_dashboard(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+>>>>>>> 5cd483dc5dc7ef33d3efcd4f99cf6bff949883e2
     # Get user's workspaces
     workspaces = current_user.workspaces
     
@@ -1491,6 +1759,7 @@ async def not_found_handler(request, exc):
         }
     )
 
+<<<<<<< HEAD
 @app.exception_handler(500)
 async def internal_error_handler(request, exc):
     logging.error(f"Internal server error: {exc}")
@@ -1502,7 +1771,24 @@ async def internal_error_handler(request, exc):
             "path": str(request.url.path)
         }
     )
+=======
+# WebSocket endpoint
+@api_router.websocket("/ws/{project_id}")
+async def websocket_endpoint(websocket: WebSocket, project_id: int):
+    await manager.connect(websocket, f"project_{project_id}")
+    try:
+        while True:
+            data = await websocket.receive_text()
+            # Handle incoming messages if needed
+            pass
+    except WebSocketDisconnect:
+        manager.disconnect(websocket, f"project_{project_id}")
+>>>>>>> 5cd483dc5dc7ef33d3efcd4f99cf6bff949883e2
+
+# Register API router with prefix
+app.include_router(api_router, prefix=settings.API_V1_STR)
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+

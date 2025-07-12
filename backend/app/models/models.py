@@ -326,4 +326,54 @@ class TaskCustomField(Base):
 
     # Relationships
     task = relationship("Task", back_populates="custom_field_values")
+<<<<<<< HEAD
     field = relationship("CustomField", back_populates="values")
+=======
+    field = relationship("CustomField", back_populates="values")
+
+class TimeEntry(Base):
+    __tablename__ = "time_entries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    start_time = Column(DateTime(timezone=True))
+    end_time = Column(DateTime(timezone=True))
+    duration = Column(Float)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    task = relationship("Task", back_populates="time_entries")
+    user = relationship("User")
+
+class Attachment(Base):
+    __tablename__ = "attachments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False)
+    filename = Column(String, nullable=False)
+    file_path = Column(String, nullable=False)
+    uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    task = relationship("Task", back_populates="attachments")
+
+# Goals allow tracking high level objectives within a workspace
+class Goal(Base):
+    __tablename__ = "goals"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    description = Column(Text)
+    workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=False)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    due_date = Column(DateTime(timezone=True))
+    progress = Column(Float, default=0.0)
+    is_completed = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    workspace = relationship("Workspace")
+    owner = relationship("User")
+
+
+>>>>>>> 5cd483dc5dc7ef33d3efcd4f99cf6bff949883e2

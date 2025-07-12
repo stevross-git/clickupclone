@@ -11,6 +11,7 @@ import ProjectView from './pages/ProjectView';
 import ProfilePage from './pages/ProfilePage';
 import Layout from './components/Layout';
 import TimeTracking from './pages/TimeTracking';
+import Goals from './pages/Goals';
 
 // Placeholder components for missing routes
 const InboxPage = () => (
@@ -79,7 +80,11 @@ function App() {
                 <Route path="inbox" element={<InboxPage />} />
                 <Route path="calendar" element={<CalendarPage />} />
                 <Route path="time-tracking" element={<TimeTracking />} />
+<<<<<<< HEAD
                 <Route path="goals" element={<GoalsPage />} />
+=======
+                <Route path="goals" element={<Goals />} />
+>>>>>>> 5cd483dc5dc7ef33d3efcd4f99cf6bff949883e2
                 <Route path="reports" element={<ReportsPage />} />
                 <Route path="notifications" element={<NotificationsPage />} />
                 <Route path="settings" element={<SettingsPage />} />

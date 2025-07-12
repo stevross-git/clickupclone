@@ -195,10 +195,58 @@ const Sidebar = ({ open, onClose }) => {
               </Link>
             ))}
 
+<<<<<<< HEAD
             {/* Workspaces section */}
             <div className="pt-6">
               <div className="flex items-center justify-between px-3 py-2">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+=======
+            <div
+              className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-not-allowed opacity-50`}
+            >
+              <InboxIcon className="h-5 w-5" />
+              {!isCollapsed && <span>Inbox</span>}
+              {!isCollapsed && <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">3</span>}
+            </div>
+
+            <div
+              className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-not-allowed opacity-50`}
+            >
+              <CalendarIcon className="h-5 w-5" />
+              {!isCollapsed && <span>Calendar</span>}
+            </div>
+
+            <Link
+              to="/time-tracking"
+              className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                location.pathname === '/time-tracking'
+                  ? 'bg-purple-100 text-purple-700'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              <ClockIcon className="h-5 w-5" />
+              {!isCollapsed && <span>Time Tracking</span>}
+            </Link>
+
+            <Link
+              to="/goals"
+              className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                location.pathname === '/goals'
+                  ? 'bg-purple-100 text-purple-700'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              <ChartBarIcon className="h-5 w-5" />
+              {!isCollapsed && <span>Goals</span>}
+            </Link>
+          </div>
+
+          {/* Workspaces Section */}
+          {!isCollapsed && (
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+>>>>>>> 5cd483dc5dc7ef33d3efcd4f99cf6bff949883e2
                   Workspaces
                 </h3>
                 <button
