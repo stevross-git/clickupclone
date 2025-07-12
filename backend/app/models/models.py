@@ -156,6 +156,9 @@ class Task(Base):
     comments = relationship("Comment", back_populates="task", cascade="all, delete-orphan")
     dependencies = relationship("TaskDependency", foreign_keys="TaskDependency.task_id", back_populates="task")
     blocking = relationship("TaskDependency", foreign_keys="TaskDependency.depends_on_id", back_populates="depends_on_task")
+    time_entries = relationship("TimeEntry", back_populates="task", cascade="all, delete-orphan")
+    custom_field_values = relationship("TaskCustomField", back_populates="task", cascade="all, delete-orphan")
+    attachments = relationship("Attachment", back_populates="task", cascade="all, delete-orphan")
 
 class TaskDependency(Base):
     __tablename__ = "task_dependencies"
@@ -209,3 +212,67 @@ class ActivityLog(Base):
     
     # Relationships
     user = relationship("User", back_populates="activity_logs")
+
+# Additional Enums
+class FieldType(str, enum.Enum):
+    TEXT = "text"
+    NUMBER = "number"
+    DATE = "date"
+    BOOLEAN = "boolean"
+
+# Custom Fields allow extra data on tasks
+class CustomField(Base):
+    __tablename__ = "custom_fields"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    field_type = Column(Enum(FieldType), default=FieldType.TEXT)
+    options = Column(Text)
+    workspace_id = Column(Integer, ForeignKey("workspaces.id"))
+    is_required = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    workspace = relationship("Workspace")
+    values = relationship("TaskCustomField", back_populates="field", cascade="all, delete-orphan")
+
+class TaskCustomField(Base):
+    __tablename__ = "task_custom_fields"
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False)
+    field_id = Column(Integer, ForeignKey("custom_fields.id"), nullable=False)
+    value = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    task = relationship("Task", back_populates="custom_field_values")
+    field = relationship("CustomField", back_populates="values")
+
+class TimeEntry(Base):
+    __tablename__ = "time_entries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    start_time = Column(DateTime(timezone=True))
+    end_time = Column(DateTime(timezone=True))
+    duration = Column(Float)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    task = relationship("Task", back_populates="time_entries")
+    user = relationship("User")
+
+class Attachment(Base):
+    __tablename__ = "attachments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False)
+    filename = Column(String, nullable=False)
+    file_path = Column(String, nullable=False)
+    uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    task = relationship("Task", back_populates="attachments")
+
