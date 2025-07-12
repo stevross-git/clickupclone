@@ -193,6 +193,38 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
 def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
 
+
+# User endpoints
+@app.get("/users/me", response_model=schemas.User)
+def read_user_me(current_user: User = Depends(get_current_user)):
+    return current_user
+
+@app.put("/users/me", response_model=schemas.User)
+def update_user_me(
+    user_update: schemas.UserUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    update_data = user_update.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(current_user, key, value)
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+@app.get("/users/", response_model=List[schemas.User])
+def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    users = db.query(User).offset(skip).limit(limit).all()
+    return users
+
+@app.get("/users/{user_id}", response_model=schemas.User)
+def read_user(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+
 # Workspace endpoints
 @app.post("/workspaces/", response_model=schemas.Workspace)
 def create_workspace(workspace: schemas.WorkspaceCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):

@@ -8,6 +8,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import Dashboard from './pages/Dashboard';
 import ProjectView from './pages/ProjectView';
+import ProfilePage from './pages/ProfilePage';
 import Layout from './components/Layout';
 
 // Placeholder components for missing routes
@@ -57,6 +58,7 @@ function App() {
                 <Route path="calendar" element={<CalendarPage />} />
                 <Route path="time-tracking" element={<TimeTrackingPage />} />
                 <Route path="reports" element={<ReportsPage />} />
+                <Route path="profile" element={<ProfilePage />} />
                 <Route path="project/:projectId" element={<ProjectView />} />
                 <Route index element={<Navigate to="/dashboard" replace />} />
               </Route>
