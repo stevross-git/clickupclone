@@ -10,6 +10,35 @@ import Dashboard from './pages/Dashboard';
 import ProjectView from './pages/ProjectView';
 import Layout from './components/Layout';
 
+// Placeholder components for missing routes
+const InboxPage = () => (
+  <div className="p-8 text-center">
+    <h1 className="text-2xl font-bold text-gray-900 mb-4">Inbox</h1>
+    <p className="text-gray-600">Inbox functionality coming soon...</p>
+  </div>
+);
+
+const CalendarPage = () => (
+  <div className="p-8 text-center">
+    <h1 className="text-2xl font-bold text-gray-900 mb-4">Calendar</h1>
+    <p className="text-gray-600">Calendar functionality coming soon...</p>
+  </div>
+);
+
+const TimeTrackingPage = () => (
+  <div className="p-8 text-center">
+    <h1 className="text-2xl font-bold text-gray-900 mb-4">Time Tracking</h1>
+    <p className="text-gray-600">Time tracking functionality coming soon...</p>
+  </div>
+);
+
+const ReportsPage = () => (
+  <div className="p-8 text-center">
+    <h1 className="text-2xl font-bold text-gray-900 mb-4">Reports</h1>
+    <p className="text-gray-600">Reports functionality coming soon...</p>
+  </div>
+);
+
 function App() {
   return (
     <AuthProvider>
@@ -24,6 +53,10 @@ function App() {
             <Route path="/" element={<ProtectedRoute />}>
               <Route path="/" element={<Layout />}>
                 <Route path="dashboard" element={<Dashboard />} />
+                <Route path="inbox" element={<InboxPage />} />
+                <Route path="calendar" element={<CalendarPage />} />
+                <Route path="time-tracking" element={<TimeTrackingPage />} />
+                <Route path="reports" element={<ReportsPage />} />
                 <Route path="project/:projectId" element={<ProjectView />} />
                 <Route index element={<Navigate to="/dashboard" replace />} />
               </Route>

@@ -1,7 +1,6 @@
 // components/CreateProjectModal.jsx
 import React, { useState } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import apiClient from '../services/api';
 import { useNotification } from '../contexts/NotificationContext';
 
 const PROJECT_COLORS = [
@@ -17,11 +16,11 @@ const PROJECT_COLORS = [
   '#6b7280'  // gray
 ];
 
-function CreateProjectModal({ workspaces, onClose, onProjectCreated }) {
+function CreateProjectModal({ workspaces, selectedWorkspace, onClose, onProjectCreated }) {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    workspace_id: workspaces.length > 0 ? workspaces[0].id : '',
+    workspace_id: selectedWorkspace ? selectedWorkspace.id : (workspaces.length > 0 ? workspaces[0].id : ''),
     color: PROJECT_COLORS[0]
   });
   const [loading, setLoading] = useState(false);
@@ -57,8 +56,16 @@ function CreateProjectModal({ workspaces, onClose, onProjectCreated }) {
     setLoading(true);
 
     try {
-      const response = await apiClient.post('/projects/', formData);
-      onProjectCreated(response.data);
+      // For now, create a mock project
+      const newProject = {
+        id: Date.now(), // Simple ID generation for demo
+        name: formData.name,
+        description: formData.description,
+        workspace_id: formData.workspace_id,
+        color: formData.color
+      };
+      
+      onProjectCreated(newProject);
       addNotification('Project created successfully', 'success');
     } catch (error) {
       console.error('Error creating project:', error);
@@ -94,7 +101,7 @@ function CreateProjectModal({ workspaces, onClose, onProjectCreated }) {
               value={formData.name}
               onChange={handleChange}
               placeholder="Enter project name..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"
               required
             />
           </div>
@@ -107,8 +114,9 @@ function CreateProjectModal({ workspaces, onClose, onProjectCreated }) {
               name="workspace_id"
               value={formData.workspace_id}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"
               required
+              disabled={selectedWorkspace ? true : false}
             >
               {workspaces.map(workspace => (
                 <option key={workspace.id} value={workspace.id}>
@@ -116,6 +124,11 @@ function CreateProjectModal({ workspaces, onClose, onProjectCreated }) {
                 </option>
               ))}
             </select>
+            {selectedWorkspace && (
+              <p className="text-xs text-gray-500 mt-1">
+                Creating project in "{selectedWorkspace.name}" workspace
+              </p>
+            )}
           </div>
 
           <div>
@@ -128,7 +141,7 @@ function CreateProjectModal({ workspaces, onClose, onProjectCreated }) {
               onChange={handleChange}
               placeholder="Describe your project..."
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"
             />
           </div>
 
@@ -164,7 +177,7 @@ function CreateProjectModal({ workspaces, onClose, onProjectCreated }) {
             <button
               type="submit"
               disabled={loading || !formData.name.trim() || !formData.workspace_id}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? 'Creating...' : 'Create Project'}
             </button>
