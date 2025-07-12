@@ -10,6 +10,7 @@ This repository contains a minimal skeleton for a ClickUp-like application. The 
 - Tasks include a `due_date` field so they can appear in the calendar.
 - New `/tasks/{task_id}/dependencies` routes allow adding or removing task dependencies.
 - Tasks now support a `priority` value (`low`, `medium`, `high`, `urgent`).
+
 - Optional `tag` query parameter filters tasks by tag. Tasks can have a `tags` list.
 - Tasks can now be archived and restored. Archived tasks are hidden from default queries.
 - `/users/me` endpoint allows fetching and updating the authenticated user's profile.
