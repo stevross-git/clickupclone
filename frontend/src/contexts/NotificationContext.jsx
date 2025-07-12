@@ -3,6 +3,7 @@ import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { Toaster, toast } from 'react-hot-toast';
 import apiService from '../services/api';
 import wsService from '../services/websocket';
+import { useAuth } from './AuthContext';
 
 const NotificationContext = createContext();
 
@@ -16,55 +17,58 @@ const notificationReducer = (state, action) => {
   switch (action.type) {
     case 'SET_LOADING':
       return { ...state, isLoading: action.payload };
-    
+
     case 'SET_NOTIFICATIONS':
-      const unreadCount = action.payload.filter(n => n.status === 'unread').length;
+      const unreadCount = action.payload.filter((n) => n.status === 'unread').length;
       return {
         ...state,
         notifications: action.payload,
         unreadCount,
         isLoading: false,
       };
-    
+
     case 'ADD_NOTIFICATION':
       const newNotifications = [action.payload, ...state.notifications];
-      const newUnreadCount = newNotifications.filter(n => n.status === 'unread').length;
+      const newUnreadCount = newNotifications.filter((n) => n.status === 'unread').length;
       return {
         ...state,
         notifications: newNotifications,
         unreadCount: newUnreadCount,
       };
-    
+
     case 'MARK_READ':
-      const updatedNotifications = state.notifications.map(n =>
+      const updatedNotifications = state.notifications.map((n) =>
         n.id === action.payload ? { ...n, status: 'read', read_at: new Date().toISOString() } : n
       );
-      const updatedUnreadCount = updatedNotifications.filter(n => n.status === 'unread').length;
+      const updatedUnreadCount = updatedNotifications.filter((n) => n.status === 'unread').length;
       return {
         ...state,
         notifications: updatedNotifications,
         unreadCount: updatedUnreadCount,
       };
-    
+
     case 'MARK_ALL_READ':
-      const allReadNotifications = state.notifications.map(n => ({
+      const allReadNotifications = state.notifications.map((n) => ({
         ...n,
         status: 'read',
-        read_at: n.read_at || new Date().toISOString()
+        read_at: n.read_at || new Date().toISOString(),
       }));
       return {
         ...state,
         notifications: allReadNotifications,
         unreadCount: 0,
       };
-    
+
     case 'CLEAR_ALL':
       return {
         ...state,
         notifications: [],
         unreadCount: 0,
       };
-    
+
+    case 'RESET':
+      return initialState;
+
     default:
       return state;
   }
@@ -72,16 +76,25 @@ const notificationReducer = (state, action) => {
 
 export const NotificationProvider = ({ children }) => {
   const [state, dispatch] = useReducer(notificationReducer, initialState);
+  const { user, loading: authLoading } = useAuth();
 
   useEffect(() => {
-    loadNotifications();
-    setupWebSocketListeners();
-    
+    // Only load notifications if user is authenticated and auth is not loading
+    if (user && !authLoading) {
+      loadNotifications();
+      setupWebSocketListeners();
+    } else if (!user && !authLoading) {
+      // Reset state when user logs out
+      dispatch({ type: 'RESET' });
+    }
+
     return () => {
       // Cleanup WebSocket listeners
-      wsService.off('notification', handleNewNotification);
+      if (wsService && wsService.off) {
+        wsService.off('notification', handleNewNotification);
+      }
     };
-  }, []);
+  }, [user, authLoading]);
 
   const loadNotifications = async () => {
     try {
@@ -91,16 +104,23 @@ export const NotificationProvider = ({ children }) => {
     } catch (error) {
       console.error('Failed to load notifications:', error);
       dispatch({ type: 'SET_LOADING', payload: false });
+
+      // Don't show error toast for auth errors (user will be redirected to login)
+      if (error.response?.status !== 401) {
+        toast.error('Failed to load notifications');
+      }
     }
   };
 
   const setupWebSocketListeners = () => {
-    wsService.on('notification', handleNewNotification);
+    if (wsService && wsService.on) {
+      wsService.on('notification', handleNewNotification);
+    }
   };
 
   const handleNewNotification = (notification) => {
     dispatch({ type: 'ADD_NOTIFICATION', payload: notification });
-    
+
     // Show toast notification
     showToastNotification(notification);
   };
@@ -137,29 +157,35 @@ export const NotificationProvider = ({ children }) => {
   };
 
   const markAsRead = async (notificationId) => {
+    if (!user) return;
+
     try {
       await apiService.markNotificationRead(notificationId);
       dispatch({ type: 'MARK_READ', payload: notificationId });
     } catch (error) {
       console.error('Failed to mark notification as read:', error);
-      toast.error('Failed to mark notification as read');
+      if (error.response?.status !== 401) {
+        toast.error('Failed to mark notification as read');
+      }
     }
   };
 
   const markAllAsRead = async () => {
+    if (!user) return;
+
     try {
-      const unreadNotifications = state.notifications.filter(n => n.status === 'unread');
-      
+      const unreadNotifications = state.notifications.filter((n) => n.status === 'unread');
+
       // Mark all unread notifications as read
-      await Promise.all(
-        unreadNotifications.map(n => apiService.markNotificationRead(n.id))
-      );
-      
+      await Promise.all(unreadNotifications.map((n) => apiService.markNotificationRead(n.id)));
+
       dispatch({ type: 'MARK_ALL_READ' });
       toast.success('All notifications marked as read');
     } catch (error) {
       console.error('Failed to mark all notifications as read:', error);
-      toast.error('Failed to mark all notifications as read');
+      if (error.response?.status !== 401) {
+        toast.error('Failed to mark all notifications as read');
+      }
     }
   };
 
@@ -204,7 +230,7 @@ export const NotificationProvider = ({ children }) => {
         type = 'success';
         break;
       case 'assigned':
-        message = assignee 
+        message = assignee
           ? `${assignee} was assigned to: ${taskTitle}`
           : `You were assigned to: ${taskTitle}`;
         type = 'info';

@@ -38,7 +38,7 @@ from app.db.session import SessionLocal, engine
 from app.models.models import (
     Base, User, Workspace, Project, TaskList, Task, Comment, 
     ActivityLog, TaskStatus, TaskPriority, TimeEntry, Goal,
-    Notification, CustomField, Attachment, TaskDependency
+    Notification, CustomField, Attachment, TaskDependency)
 
 # Import models for convenience
 Base = models.Base
@@ -750,32 +750,33 @@ def get_custom_field_values(task_id: int, current_user: User = Depends(get_curre
 
 # Dashboard endpoint
 @app.get("/dashboard", response_model=schemas.DashboardData)
-def get_dashboard(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def get_dashboard(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     # Get user's workspaces
     workspaces = current_user.workspaces
     
-    project = db.query(Project).filter(Project.id == task.project_id).first()
-    if not project or (current_user not in project.members and project.owner_id != current_user.id):
-        raise HTTPException(status_code=403, detail="Not a member of this project")
+    # Add your actual dashboard logic here
+    # For example:
+    user_projects = db.query(Project).filter(
+        or_(
+            Project.owner_id == current_user.id,
+            Project.members.contains(current_user)
+        )
+    ).all()
     
-    db_time_entry = TimeEntry(
-        **time_entry.dict(),
-        user_id=current_user.id
-    )
-    db.add(db_time_entry)
+    recent_tasks = db.query(Task).filter(
+        Task.assignee_id == current_user.id
+    ).order_by(Task.created_at.desc()).limit(5).all()
     
-    # Update task actual hours
-    total_hours = db.query(func.sum(TimeEntry.hours)).filter(
-        TimeEntry.task_id == time_entry.task_id
-    ).scalar() or 0
-    task.actual_hours = total_hours + time_entry.hours
+    # Return dashboard data
+    dashboard_data = {
+        "workspaces": workspaces,
+        "projects": user_projects,
+        "recent_tasks": recent_tasks
+    }
     
-    db.commit()
-    db.refresh(db_time_entry)
+    await log_activity(db, current_user.id, "viewed", "dashboard", None)
     
-    await log_activity(db, current_user.id, "created", "time_entry", db_time_entry.id)
-    
-    return db_time_entry
+    return dashboard_data
 
 @app.get("/api/v1/time-entries/", response_model=List[schemas.TimeEntry])
 def read_time_entries(
@@ -1369,6 +1370,23 @@ async def bulk_delete_tasks(
     await log_activity(db, current_user.id, "bulk_deleted", "tasks", deleted_count)
     
     return {"deleted_count": deleted_count}
+
+# Add this to your main.py after other endpoints
+@app.get("/api/v1/notifications/", response_model=List[dict])
+async def get_notifications(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # For now, return empty array until you implement notifications
+    return []
+
+@app.get("/api/v1/notifications/unread-count")
+async def get_unread_notifications_count(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # For now, return 0 until you implement notifications
+    return {"count": 0}
 
 # ========== ANALYTICS ENDPOINTS ==========
 

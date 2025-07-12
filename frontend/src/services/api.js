@@ -1,308 +1,225 @@
 // frontend/src/services/api.js
 import axios from 'axios';
-import toast from 'react-hot-toast';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
-class ApiService {
-  constructor() {
-    this.client = axios.create({
-      baseURL: API_BASE_URL,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
-    // Request interceptor to add auth token
-    this.client.interceptors.request.use(
-      (config) => {
-        const token = localStorage.getItem('token');
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-      },
-      (error) => {
-        return Promise.reject(error);
-      }
-    );
-
-    // Response interceptor for error handling
-    this.client.interceptors.response.use(
-      (response) => response,
-      (error) => {
-        if (error.response?.status === 401) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          window.location.href = '/login';
-        } else if (error.response?.status >= 500) {
-          toast.error('Server error. Please try again later.');
-        } else if (error.response?.data?.detail) {
-          toast.error(error.response.data.detail);
-        } else if (error.message) {
-          toast.error(error.message);
-        }
-        return Promise.reject(error);
-      }
-    );
+// Request interceptor to add auth token
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
   }
+);
 
+// Response interceptor to handle auth errors
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('accessToken');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+const apiService = {
   // Auth methods
-  async login(credentials) {
-    const formData = new FormData();
-    formData.append('username', credentials.username);
-    formData.append('password', credentials.password);
+  async login(email, password) {
+    const formData = new URLSearchParams();
+    formData.append('username', email);
+    formData.append('password', password);
 
-    const response = await this.client.post('/auth/token', formData, {
+    const response = await apiClient.post('/api/v1/auth/token', formData, {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
-
-    if (response.data.access_token) {
-      localStorage.setItem('token', response.data.access_token);
-      // Get user info
-      const userResponse = await this.client.get('/auth/me');
-      localStorage.setItem('user', JSON.stringify(userResponse.data));
-    }
-
     return response.data;
-  }
+  },
 
   async register(userData) {
-    const response = await this.client.post('/auth/register', userData);
+    const response = await apiClient.post('/api/v1/auth/register', userData);
     return response.data;
-  }
+  },
 
   async getCurrentUser() {
-    const response = await this.client.get('/auth/me');
+    const response = await apiClient.get('/api/v1/auth/me');
     return response.data;
-  }
+  },
 
-  // Dashboard
+  // Dashboard methods
   async getDashboard() {
-    const response = await this.client.get('/dashboard');
+    const response = await apiClient.get('/api/v1/dashboard');
     return response.data;
-  }
+  },
 
-  // Workspaces
+  // Workspace methods
+  async createWorkspace(workspaceData) {
+    const response = await apiClient.post('/api/v1/workspaces/', workspaceData);
+    return response.data;
+  },
+
   async getWorkspaces() {
-    const response = await this.client.get('/workspaces/');
+    const response = await apiClient.get('/api/v1/workspaces/');
     return response.data;
-  }
+  },
 
-  async createWorkspace(data) {
-    const response = await this.client.post('/workspaces/', data);
+  async getWorkspace(workspaceId) {
+    const response = await apiClient.get(`/api/v1/workspaces/${workspaceId}`);
     return response.data;
-  }
+  },
 
-  async getWorkspace(id) {
-    const response = await this.client.get(`/workspaces/${id}`);
+  // Project methods
+  async createProject(projectData) {
+    const response = await apiClient.post('/api/v1/projects/', projectData);
     return response.data;
-  }
+  },
 
-  async updateWorkspace(id, data) {
-    const response = await this.client.put(`/workspaces/${id}`, data);
-    return response.data;
-  }
-
-  // Projects
   async getProjects(workspaceId = null) {
     const params = workspaceId ? { workspace_id: workspaceId } : {};
-    const response = await this.client.get('/projects/', { params });
+    const response = await apiClient.get('/api/v1/projects/', { params });
     return response.data;
-  }
+  },
 
-  async createProject(data) {
-    const response = await this.client.post('/projects/', data);
+  async getProject(projectId) {
+    const response = await apiClient.get(`/api/v1/projects/${projectId}`);
     return response.data;
-  }
+  },
 
-  async getProject(id) {
-    const response = await this.client.get(`/projects/${id}`);
+  // Task methods
+  async createTask(taskData) {
+    const response = await apiClient.post('/api/v1/tasks/', taskData);
     return response.data;
-  }
+  },
 
-  async updateProject(id, data) {
-    const response = await this.client.put(`/projects/${id}`, data);
+  async getTasks(filters = {}) {
+    const response = await apiClient.get('/api/v1/tasks/', { params: filters });
     return response.data;
-  }
+  },
 
-  // Task Lists
+  async getTask(taskId) {
+    const response = await apiClient.get(`/api/v1/tasks/${taskId}`);
+    return response.data;
+  },
+
+  async updateTask(taskId, taskData) {
+    const response = await apiClient.put(`/api/v1/tasks/${taskId}`, taskData);
+    return response.data;
+  },
+
+  // Task list methods
+  async createTaskList(taskListData) {
+    const response = await apiClient.post('/api/v1/task-lists/', taskListData);
+    return response.data;
+  },
+
   async getTaskLists(projectId) {
-    const response = await this.client.get('/task-lists/', {
+    const response = await apiClient.get('/api/v1/task-lists/', {
       params: { project_id: projectId },
     });
     return response.data;
-  }
+  },
 
-  async createTaskList(data) {
-    const response = await this.client.post('/task-lists/', data);
+  // Time tracking methods
+  async createTimeEntry(timeEntryData) {
+    const response = await apiClient.post('/api/v1/time-entries/', timeEntryData);
     return response.data;
-  }
+  },
 
-  async updateTaskList(id, data) {
-    const response = await this.client.put(`/task-lists/${id}`, data);
+  async getTimeEntries(filters = {}) {
+    const response = await apiClient.get('/api/v1/time-entries/', { params: filters });
     return response.data;
-  }
+  },
 
-  // Tasks
-  async getTasks(params = {}) {
-    const response = await this.client.get('/tasks/', { params });
+  // Comment methods
+  async createComment(commentData) {
+    const response = await apiClient.post('/api/v1/comments/', commentData);
     return response.data;
-  }
+  },
 
-  async createTask(data) {
-    const response = await this.client.post('/tasks/', data);
-    return response.data;
-  }
-
-  async getTask(id) {
-    const response = await this.client.get(`/tasks/${id}`);
-    return response.data;
-  }
-
-  async updateTask(id, data) {
-    const response = await this.client.put(`/tasks/${id}`, data);
-    return response.data;
-  }
-
-  async deleteTask(id) {
-    await this.client.delete(`/tasks/${id}`);
-  }
-
-  // Time Entries
-  async getTimeEntries(params = {}) {
-    const response = await this.client.get('/time-entries/', { params });
-    return response.data;
-  }
-
-  async createTimeEntry(data) {
-    const response = await this.client.post('/time-entries/', data);
-    return response.data;
-  }
-
-  async updateTimeEntry(id, data) {
-    const response = await this.client.put(`/time-entries/${id}`, data);
-    return response.data;
-  }
-
-  async deleteTimeEntry(id) {
-    await this.client.delete(`/time-entries/${id}`);
-  }
-
-  // Comments
   async getComments(taskId) {
-    const response = await this.client.get('/comments/', {
+    const response = await apiClient.get('/api/v1/comments/', {
       params: { task_id: taskId },
     });
     return response.data;
-  }
+  },
 
-  async createComment(data) {
-    const response = await this.client.post('/comments/', data);
-    return response.data;
-  }
-
-  async updateComment(id, data) {
-    const response = await this.client.put(`/comments/${id}`, data);
-    return response.data;
-  }
-
-  async deleteComment(id) {
-    await this.client.delete(`/comments/${id}`);
-  }
-
-  // File uploads
-  async uploadFile(taskId, file) {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const response = await this.client.post(`/tasks/${taskId}/attachments/`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    return response.data;
-  }
-
-  async getAttachments(taskId) {
-    const response = await this.client.get(`/tasks/${taskId}/attachments/`);
-    return response.data;
-  }
-
-  // Custom Fields
-  async getCustomFields(projectId) {
-    const response = await this.client.get('/custom-fields/', {
-      params: { project_id: projectId },
-    });
-    return response.data;
-  }
-
-  async createCustomField(data) {
-    const response = await this.client.post('/custom-fields/', data);
-    return response.data;
-  }
-
-  async updateCustomField(id, data) {
-    const response = await this.client.put(`/custom-fields/${id}`, data);
-    return response.data;
-  }
-
-  // Goals
-  async getGoals(workspaceId) {
-    const response = await this.client.get('/goals/', {
-      params: { workspace_id: workspaceId },
-    });
-    return response.data;
-  }
-
-  async createGoal(data) {
-    const response = await this.client.post('/goals/', data);
-    return response.data;
-  }
-
-  async updateGoal(id, data) {
-    const response = await this.client.put(`/goals/${id}`, data);
-    return response.data;
-  }
-
-  // Notifications
+  // Notification methods
   async getNotifications() {
-    const response = await this.client.get('/notifications/');
+    const response = await apiClient.get('/api/v1/notifications/');
     return response.data;
-  }
+  },
 
-  async markNotificationRead(id) {
-    await this.client.put(`/notifications/${id}/read`);
-  }
+  async getUnreadCount() {
+    const response = await apiClient.get('/api/v1/notifications/unread-count');
+    return response.data.count;
+  },
 
-  // Search
+  async markNotificationRead(notificationId) {
+    const response = await apiClient.put(`/api/v1/notifications/${notificationId}/read`);
+    return response.data;
+  },
+
+  // Search methods
   async search(query, type = null, projectId = null) {
     const params = { q: query };
     if (type) params.type = type;
     if (projectId) params.project_id = projectId;
 
-    const response = await this.client.get('/search/', { params });
+    const response = await apiClient.get('/api/v1/search/', { params });
     return response.data;
-  }
+  },
 
-  // Generic CRUD methods
-  async get(endpoint, params = {}) {
-    const response = await this.client.get(endpoint, { params });
+  // File upload methods
+  async uploadFile(taskId, file) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await apiClient.post(`/api/v1/tasks/${taskId}/attachments/`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return response.data;
-  }
+  },
 
-  async post(endpoint, data) {
-    const response = await this.client.post(endpoint, data);
+  async getAttachments(taskId) {
+    const response = await apiClient.get(`/api/v1/tasks/${taskId}/attachments/`);
     return response.data;
-  }
+  },
 
-  async put(endpoint, data) {
-    const response = await this.client.put(endpoint, data);
+  // Goals methods
+  async createGoal(goalData) {
+    const response = await apiClient.post('/api/v1/goals/', goalData);
     return response.data;
-  }
+  },
 
-  async delete(endpoint) {
-    await this.client.delete(endpoint);
-  }
-}
+  async getGoals(workspaceId) {
+    const response = await apiClient.get('/api/v1/goals/', {
+      params: { workspace_id: workspaceId },
+    });
+    return response.data;
+  },
 
-const apiService = new ApiService();
+  // Analytics methods
+  async getProjectAnalytics(projectId, startDate = null, endDate = null) {
+    const params = {};
+    if (startDate) params.start_date = startDate;
+    if (endDate) params.end_date = endDate;
+
+    const response = await apiClient.get(`/api/v1/analytics/project/${projectId}`, { params });
+    return response.data;
+  },
+};
+
 export default apiService;

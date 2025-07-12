@@ -15,6 +15,7 @@ import {
   BoltIcon,
   DocumentTextIcon,
   XMarkIcon,
+  MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
@@ -27,7 +28,7 @@ const Sidebar = ({ open, onClose }) => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { unreadCount } = useNotification();
-  
+
   const [workspaces, setWorkspaces] = useState([]);
   const [projects, setProjects] = useState([]);
   const [expandedWorkspaces, setExpandedWorkspaces] = useState(new Set());
@@ -43,16 +44,14 @@ const Sidebar = ({ open, onClose }) => {
     try {
       const [workspacesData, projectsData] = await Promise.all([
         apiService.getWorkspaces(),
-        apiService.getProjects()
+        apiService.getProjects(),
       ]);
-      
+
       setWorkspaces(workspacesData);
       setProjects(projectsData);
-      
+
       // Auto-expand workspaces with projects
-      const workspacesWithProjects = new Set(
-        projectsData.map(p => p.workspace_id)
-      );
+      const workspacesWithProjects = new Set(projectsData.map((p) => p.workspace_id));
       setExpandedWorkspaces(workspacesWithProjects);
     } catch (error) {
       console.error('Failed to load workspaces and projects:', error);
@@ -72,7 +71,7 @@ const Sidebar = ({ open, onClose }) => {
   };
 
   const getProjectsForWorkspace = (workspaceId) => {
-    return projects.filter(p => p.workspace_id === workspaceId);
+    return projects.filter((p) => p.workspace_id === workspaceId);
   };
 
   const handleWorkspaceCreated = () => {
@@ -91,11 +90,11 @@ const Sidebar = ({ open, onClose }) => {
     { name: 'Time Tracking', href: '/time-tracking', icon: ClockIcon },
     { name: 'Goals', href: '/goals', icon: BoltIcon },
     { name: 'Reports', href: '/reports', icon: ChartBarIcon },
-    { 
-      name: 'Notifications', 
-      href: '/notifications', 
+    {
+      name: 'Notifications',
+      href: '/notifications',
       icon: BellIcon,
-      badge: unreadCount > 0 ? unreadCount : null
+      badge: unreadCount > 0 ? unreadCount : null,
     },
     { name: 'Settings', href: '/settings', icon: Cog6ToothIcon },
   ];
@@ -105,48 +104,52 @@ const Sidebar = ({ open, onClose }) => {
   return (
     <>
       {/* Desktop sidebar */}
-      <div className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out
+      <div
+        className={`
+        fixed inset-y-0 left-0 z-50 w-64 transform border-r border-gray-200 bg-white transition-transform duration-300 ease-in-out
         ${open ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0
-      `}>
-        <div className="flex flex-col h-full">
+      `}
+      >
+        <div className="flex h-full flex-col">
           {/* Logo */}
-          <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
+          <div className="flex h-16 items-center justify-between border-b border-gray-200 px-6">
             <Link to="/dashboard" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
-                <DocumentTextIcon className="w-5 h-5 text-white" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-r from-purple-600 to-blue-600">
+                <DocumentTextIcon className="h-5 w-5 text-white" />
               </div>
               <span className="text-xl font-bold text-gray-900">ClickUp Clone</span>
             </Link>
-            
+
             {/* Mobile close button */}
             <button
               onClick={onClose}
-              className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+              className="rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500 lg:hidden"
             >
-              <XMarkIcon className="w-5 h-5" />
+              <XMarkIcon className="h-5 w-5" />
             </button>
           </div>
 
           {/* User info */}
-          <div className="p-4 border-b border-gray-200">
-
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
+          <div className="border-b border-gray-200 p-4">
+            <div className="mb-4 flex items-center space-x-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-300">
                 <span className="text-sm font-medium text-gray-700">
-                  {user?.full_name?.split(' ').map(n => n[0]).join('').toUpperCase()}
+                  {user?.full_name
+                    ?.split(' ')
+                    .map((n) => n[0])
+                    .join('')
+                    .toUpperCase()}
                 </span>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">
-                  {user?.full_name}
-                </p>
-                <p className="text-xs text-gray-500 truncate">
-                  {user?.email}
-                </p>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-gray-900">{user?.full_name}</p>
+                <p className="truncate text-xs text-gray-500">{user?.email}</p>
               </div>
+            </div>
+
+            {/* Search */}
             <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
               <label htmlFor="sidebar-search" className="sr-only">
                 Search
               </label>
@@ -156,34 +159,36 @@ const Sidebar = ({ open, onClose }) => {
                 type="text"
                 autoComplete="off"
                 placeholder="Search"
-                className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full rounded-lg border border-gray-200 py-2 pl-10 pr-4 text-sm focus:border-transparent focus:ring-2 focus:ring-purple-500"
               />
-
             </div>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
+          <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-4">
             {navigation.map((item) => (
               <Link
                 key={item.name}
                 to={item.href}
                 onClick={() => onClose()}
                 className={`
-                  group flex items-center px-3 py-2 text-sm font-medium rounded-md relative
-                  ${isActive(item.href)
-                    ? 'bg-purple-50 text-purple-700 border-r-2 border-purple-700'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  group relative flex items-center rounded-md px-3 py-2 text-sm font-medium
+                  ${
+                    isActive(item.href)
+                      ? 'border-r-2 border-purple-700 bg-purple-50 text-purple-700'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   }
                 `}
               >
-                <item.icon className={`
+                <item.icon
+                  className={`
                   mr-3 h-5 w-5 flex-shrink-0
                   ${isActive(item.href) ? 'text-purple-500' : 'text-gray-400 group-hover:text-gray-500'}
-                `} />
+                `}
+                />
                 {item.name}
                 {item.badge && (
-                  <span className="ml-auto bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white">
                     {item.badge > 99 ? '99+' : item.badge}
                   </span>
                 )}
@@ -193,23 +198,23 @@ const Sidebar = ({ open, onClose }) => {
             {/* Workspaces section */}
             <div className="pt-6">
               <div className="flex items-center justify-between px-3 py-2">
-                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500">
                   Workspaces
                 </h3>
                 <button
                   onClick={() => setShowCreateWorkspace(true)}
-                  className="p-1 text-gray-400 hover:text-gray-600 rounded"
+                  className="rounded p-1 text-gray-400 hover:text-gray-600"
                   title="Create workspace"
                 >
-                  <PlusIcon className="w-4 h-4" />
+                  <PlusIcon className="h-4 w-4" />
                 </button>
               </div>
 
               {loading ? (
                 <div className="px-3 py-2">
                   <div className="animate-pulse space-y-2">
-                    <div className="h-4 bg-gray-200 rounded"></div>
-                    <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                    <div className="h-4 rounded bg-gray-200"></div>
+                    <div className="h-4 w-3/4 rounded bg-gray-200"></div>
                   </div>
                 </div>
               ) : (
@@ -222,28 +227,28 @@ const Sidebar = ({ open, onClose }) => {
                       <div key={workspace.id}>
                         <button
                           onClick={() => toggleWorkspace(workspace.id)}
-                          className="w-full flex items-center px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md"
+                          className="group flex w-full items-center rounded-md px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                         >
                           {workspaceProjects.length > 0 ? (
                             isExpanded ? (
-                              <ChevronDownIcon className="w-4 h-4 mr-2 text-gray-400" />
+                              <ChevronDownIcon className="mr-2 h-4 w-4 text-gray-400" />
                             ) : (
-                              <ChevronRightIcon className="w-4 h-4 mr-2 text-gray-400" />
+                              <ChevronRightIcon className="mr-2 h-4 w-4 text-gray-400" />
                             )
                           ) : (
-                            <div className="w-4 h-4 mr-2" />
+                            <div className="mr-2 h-4 w-4" />
                           )}
-                          <FolderIcon className="w-4 h-4 mr-2 text-gray-400" />
-                          <span className="flex-1 text-left truncate">{workspace.name}</span>
+                          <FolderIcon className="mr-2 h-4 w-4 text-gray-400" />
+                          <span className="flex-1 truncate text-left">{workspace.name}</span>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               setShowCreateProject(true);
                             }}
-                            className="p-1 text-gray-400 hover:text-gray-600 rounded opacity-0 group-hover:opacity-100"
+                            className="rounded p-1 text-gray-400 opacity-0 hover:text-gray-600 group-hover:opacity-100"
                             title="Create project"
                           >
-                            <PlusIcon className="w-3 h-3" />
+                            <PlusIcon className="h-3 w-3" />
                           </button>
                         </button>
 
@@ -256,15 +261,16 @@ const Sidebar = ({ open, onClose }) => {
                                 to={`/project/${project.id}`}
                                 onClick={() => onClose()}
                                 className={`
-                                  flex items-center px-3 py-1.5 text-sm rounded-md
-                                  ${location.pathname === `/project/${project.id}`
-                                    ? 'bg-purple-50 text-purple-700'
-                                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                                  flex items-center rounded-md px-3 py-1.5 text-sm
+                                  ${
+                                    location.pathname === `/project/${project.id}`
+                                      ? 'bg-purple-50 text-purple-700'
+                                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                                   }
                                 `}
                               >
-                                <div 
-                                  className="w-3 h-3 rounded mr-2 flex-shrink-0"
+                                <div
+                                  className="mr-2 h-3 w-3 flex-shrink-0 rounded"
                                   style={{ backgroundColor: project.color }}
                                 />
                                 <span className="truncate">{project.name}</span>
@@ -279,9 +285,9 @@ const Sidebar = ({ open, onClose }) => {
                   {workspaces.length === 0 && (
                     <button
                       onClick={() => setShowCreateWorkspace(true)}
-                      className="w-full flex items-center px-3 py-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-md border-2 border-dashed border-gray-300"
+                      className="flex w-full items-center rounded-md border-2 border-dashed border-gray-300 px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700"
                     >
-                      <PlusIcon className="w-4 h-4 mr-2" />
+                      <PlusIcon className="mr-2 h-4 w-4" />
                       Create your first workspace
                     </button>
                   )}
@@ -291,13 +297,18 @@ const Sidebar = ({ open, onClose }) => {
           </nav>
 
           {/* Logout button */}
-          <div className="p-4 border-t border-gray-200">
+          <div className="border-t border-gray-200 p-4">
             <button
               onClick={logout}
-              className="w-full flex items-center px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md"
+              className="flex w-full items-center rounded-md px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900"
             >
-              <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              <svg className="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013 3v1"
+                />
               </svg>
               Sign out
             </button>

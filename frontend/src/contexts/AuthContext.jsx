@@ -17,7 +17,7 @@ const authReducer = (state, action) => {
   switch (action.type) {
     case 'SET_LOADING':
       return { ...state, isLoading: action.payload };
-    
+
     case 'SET_USER':
       return {
         ...state,
@@ -26,26 +26,26 @@ const authReducer = (state, action) => {
         isLoading: false,
         error: null,
       };
-    
+
     case 'SET_ERROR':
       return {
         ...state,
         error: action.payload,
         isLoading: false,
       };
-    
+
     case 'LOGOUT':
       return {
         ...initialState,
         isLoading: false,
       };
-    
+
     case 'UPDATE_USER':
       return {
         ...state,
         user: { ...state.user, ...action.payload },
       };
-    
+
     default:
       return state;
   }
@@ -61,28 +61,24 @@ export const AuthProvider = ({ children }) => {
   const initializeAuth = async () => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
-      
-      const token = localStorage.getItem('token');
-      const userData = localStorage.getItem('user');
-      
-      if (token && userData) {
-        const user = JSON.parse(userData);
-        
-        // Verify token is still valid
+
+      // Check for accessToken (to match your apiClient)
+      const token = localStorage.getItem('accessToken');
+
+      if (token) {
         try {
+          // Verify token is still valid by fetching current user
           const currentUser = await apiService.getCurrentUser();
           dispatch({ type: 'SET_USER', payload: currentUser });
-          
-          // Connect WebSocket
-          wsService.connect(token);
-          
-          // Join user's personal room for notifications
-          wsService.joinRoom(`user_${currentUser.id}`);
-          
+
+          // Connect WebSocket if available
+          if (wsService && wsService.connect) {
+            wsService.connect(token);
+            wsService.joinRoom(`user_${currentUser.id}`);
+          }
         } catch (error) {
           // Token is invalid
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
+          localStorage.removeItem('accessToken');
           dispatch({ type: 'SET_USER', payload: null });
         }
       } else {
@@ -94,24 +90,28 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const login = async (credentials) => {
+  const login = async (email, password) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
-      
-      await apiService.login(credentials);
+
+      // Call apiService.login with email and password
+      const loginData = await apiService.login(email, password);
+
+      // Get current user data
       const user = await apiService.getCurrentUser();
-      
+
       dispatch({ type: 'SET_USER', payload: user });
-      
-      // Connect WebSocket
-      const token = localStorage.getItem('token');
-      wsService.connect(token);
-      wsService.joinRoom(`user_${user.id}`);
-      
+
+      // Connect WebSocket if available
+      if (wsService && wsService.connect) {
+        const token = localStorage.getItem('accessToken');
+        wsService.connect(token);
+        wsService.joinRoom(`user_${user.id}`);
+      }
+
       toast.success(`Welcome back, ${user.full_name}!`);
       return { success: true };
-      
     } catch (error) {
       const message = error.response?.data?.detail || 'Login failed';
       dispatch({ type: 'SET_ERROR', payload: message });
@@ -124,12 +124,11 @@ export const AuthProvider = ({ children }) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
-      
+
       await apiService.register(userData);
       toast.success('Registration successful! Please log in.');
-      
+
       return { success: true };
-      
     } catch (error) {
       const message = error.response?.data?.detail || 'Registration failed';
       dispatch({ type: 'SET_ERROR', payload: message });
@@ -141,21 +140,22 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    
-    // Disconnect WebSocket
-    wsService.disconnect();
-    
+    localStorage.removeItem('accessToken');
+
+    // Disconnect WebSocket if available
+    if (wsService && wsService.disconnect) {
+      wsService.disconnect();
+    }
+
     dispatch({ type: 'LOGOUT' });
     toast.success('Logged out successfully');
   };
 
   const updateProfile = async (profileData) => {
     try {
-      const updatedUser = await apiService.updateUser(state.user.id, profileData);
+      // Assuming you have an update user method in apiService
+      const updatedUser = await apiService.updateUser(profileData);
       dispatch({ type: 'UPDATE_USER', payload: updatedUser });
-      localStorage.setItem('user', JSON.stringify(updatedUser));
       toast.success('Profile updated successfully');
       return { success: true };
     } catch (error) {
@@ -169,7 +169,6 @@ export const AuthProvider = ({ children }) => {
     try {
       const user = await apiService.getCurrentUser();
       dispatch({ type: 'SET_USER', payload: user });
-      localStorage.setItem('user', JSON.stringify(user));
     } catch (error) {
       console.error('Failed to refresh user:', error);
     }
@@ -177,6 +176,9 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     ...state,
+    // Provide both naming conventions for compatibility
+    user: state.user,
+    loading: state.isLoading,
     login,
     register,
     logout,
@@ -184,11 +186,7 @@ export const AuthProvider = ({ children }) => {
     refreshUser,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
