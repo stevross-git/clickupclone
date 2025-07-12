@@ -1,46 +1,47 @@
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, Enum, Table
+# backend/app/models/models.py
+from sqlalchemy import Boolean, Column, Integer, String, Text, DateTime, ForeignKey, Enum, Table, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+from datetime import datetime
 import enum
 
 Base = declarative_base()
 
-# Association tables for many-to-many relationships
-workspace_members = Table(
-    'workspace_members',
-    Base.metadata,
-    Column('user_id', Integer, ForeignKey('users.id'), primary_key=True),
-    Column('workspace_id', Integer, ForeignKey('workspaces.id'), primary_key=True),
-    Column('role', String, default='member')  # owner, admin, member
-)
-
-project_members = Table(
-    'project_members',
-    Base.metadata,
-    Column('user_id', Integer, ForeignKey('users.id'), primary_key=True),
-    Column('project_id', Integer, ForeignKey('projects.id'), primary_key=True),
-    Column('role', String, default='member')
-)
-
-task_assignees = Table(
-    'task_assignees',
-    Base.metadata,
-    Column('user_id', Integer, ForeignKey('users.id'), primary_key=True),
-    Column('task_id', Integer, ForeignKey('tasks.id'), primary_key=True)
-)
-
-class TaskStatus(enum.Enum):
+# Enums
+class TaskStatus(str, enum.Enum):
     TODO = "todo"
     IN_PROGRESS = "in_progress"
+    REVIEW = "review"
     DONE = "done"
-    BLOCKED = "blocked"
 
-class TaskPriority(enum.Enum):
+class TaskPriority(str, enum.Enum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
     URGENT = "urgent"
+
+# Association tables for many-to-many relationships
+workspace_members = Table(
+    "workspace_members",
+    Base.metadata,
+    Column("workspace_id", Integer, ForeignKey("workspaces.id"), primary_key=True),
+    Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
+)
+
+project_members = Table(
+    "project_members",
+    Base.metadata,
+    Column("project_id", Integer, ForeignKey("projects.id"), primary_key=True),
+    Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
+)
+
+task_assignees = Table(
+    "task_assignees",
+    Base.metadata,
+    Column("task_id", Integer, ForeignKey("tasks.id"), primary_key=True),
+    Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
+)
 
 class User(Base):
     __tablename__ = "users"
@@ -52,7 +53,6 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     avatar_url = Column(String)
     is_active = Column(Boolean, default=True)
-    is_verified = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
@@ -106,10 +106,8 @@ class TaskList(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    description = Column(Text)
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
-    position = Column(Integer, default=0)  # For ordering lists
-    color = Column(String, default="#6b7280")
+    position = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -124,22 +122,18 @@ class Task(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, nullable=False)
     description = Column(Text)
+    status = Column(Enum(TaskStatus), default=TaskStatus.TODO)
+    priority = Column(Enum(TaskPriority), default=TaskPriority.MEDIUM)
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
     task_list_id = Column(Integer, ForeignKey("task_lists.id"))
     creator_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     parent_task_id = Column(Integer, ForeignKey("tasks.id"))  # For subtasks
-    
-    status = Column(Enum(TaskStatus), default=TaskStatus.TODO)
-    priority = Column(Enum(TaskPriority), default=TaskPriority.MEDIUM)
-    
-    position = Column(Integer, default=0)  # For ordering within list
-    estimated_hours = Column(Integer)
-    actual_hours = Column(Integer)
-    
+    position = Column(Integer, default=0)
+    estimated_hours = Column(Float)
+    actual_hours = Column(Float)
     due_date = Column(DateTime(timezone=True))
     start_date = Column(DateTime(timezone=True))
     completed_at = Column(DateTime(timezone=True))
-    
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -209,24 +203,9 @@ class ActivityLog(Base):
     entity_type = Column(String, nullable=False)  # task, project, workspace, etc.
     entity_id = Column(Integer, nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    old_value = Column(Text)  # JSON string of old values
-    new_value = Column(Text)  # JSON string of new values
+    old_value = Column(Text)  # JSON string
+    new_value = Column(Text)  # JSON string
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relationships
     user = relationship("User", back_populates="activity_logs")
-
-class Notification(Base):
-    __tablename__ = "notifications"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, nullable=False)
-    message = Column(Text, nullable=False)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    entity_type = Column(String)  # task, project, etc.
-    entity_id = Column(Integer)
-    is_read = Column(Boolean, default=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
-    # Relationships
-    user = relationship("User")

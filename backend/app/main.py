@@ -1,4 +1,4 @@
-# main.py
+# backend/app/main.py
 from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,9 +14,13 @@ import json
 import logging
 import os
 
-import app.models.models as models
+from app.models import models
 from app.schemas import schemas
+from app.core.config import settings
+from app.core.security import verify_password, get_password_hash, create_access_token
+from app.db.session import SessionLocal, engine
 
+# Import models for convenience
 Base = models.Base
 User = models.User
 Workspace = models.Workspace
@@ -28,57 +32,14 @@ ActivityLog = models.ActivityLog
 TaskStatus = models.TaskStatus
 TaskPriority = models.TaskPriority
 
-# Database setup
-SQLALCHEMY_DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://postgres:password@localhost/clickup_clone",
-)
-# For development, you can use SQLite:
-# SQLALCHEMY_DATABASE_URL = "sqlite:///./clickup_clone.db"
-
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 # Create tables
 Base.metadata.create_all(bind=engine)
 
 # Security
-SECRET_KEY = "your-secret-key-here"  # Change this in production
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
 app = FastAPI(title="ClickUp Clone API", version="1.0.0")
-
-# Create default account on startup
-@app.on_event("startup")
-def create_default_user():
-    db = SessionLocal()
-    try:
-        user = db.query(User).filter(User.username == "steve").first()
-        if not user:
-            hashed = get_password_hash("welcome123")
-            user = User(
-                email="steve@example.com",
-                username="steve",
-                full_name="Steve",
-                hashed_password=hashed,
-            )
-            db.add(user)
-            db.commit()
-    finally:
-        db.close()
-
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],  # React dev servers
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # WebSocket connection manager
 class ConnectionManager:
@@ -94,9 +55,8 @@ class ConnectionManager:
     def disconnect(self, websocket: WebSocket, room: str):
         if room in self.active_connections:
             self.active_connections[room].remove(websocket)
-
-    async def send_personal_message(self, message: str, websocket: WebSocket):
-        await websocket.send_text(message)
+            if not self.active_connections[room]:
+                del self.active_connections[room]
 
     async def broadcast_to_room(self, message: dict, room: str):
         if room in self.active_connections:
@@ -104,10 +64,69 @@ class ConnectionManager:
                 try:
                     await connection.send_text(json.dumps(message))
                 except:
-                    # Remove dead connections
-                    self.active_connections[room].remove(connection)
+                    self.disconnect(connection, room)
 
 manager = ConnectionManager()
+
+# Create default account on startup
+@app.on_event("startup")
+def create_default_user():
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.username == "steve").first()
+        if not user:
+            hashed = get_password_hash("welcome123")
+            user = User(
+                email="steve@example.com",
+                username="steve",
+                full_name="Steve Johnson",
+                hashed_password=hashed,
+            )
+            db.add(user)
+            db.commit()
+            
+            # Create default workspace
+            workspace = Workspace(
+                name="Personal Workspace",
+                description="Default workspace for projects",
+                owner_id=user.id
+            )
+            db.add(workspace)
+            db.commit()
+            db.refresh(workspace)
+            
+            # Add user as member
+            workspace.members.append(user)
+            db.commit()
+            
+            # Create sample project
+            project = Project(
+                name="Sample Project",
+                description="Getting started with project management",
+                workspace_id=workspace.id,
+                owner_id=user.id,
+                color="#7c3aed"
+            )
+            db.add(project)
+            db.commit()
+            db.refresh(project)
+            
+            # Add user as member
+            project.members.append(user)
+            db.commit()
+            
+            print("Default user created: steve@example.com / welcome123")
+    finally:
+        db.close()
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Dependency
 def get_db():
@@ -117,57 +136,46 @@ def get_db():
     finally:
         db.close()
 
-# Utility functions
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-def get_password_hash(password):
-    return pwd_context.hash(password)
-
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
-
-async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
             raise credentials_exception
-        token_data = schemas.TokenPayload(sub=int(username))
     except JWTError:
         raise credentials_exception
-    user = db.query(User).filter(User.id == token_data.sub).first()
+    
+    user = db.query(User).filter(User.username == username).first()
     if user is None:
         raise credentials_exception
     return user
 
-# Health check endpoint
-@app.get("/health")
-def health_check():
-    return {"status": "healthy"}
+# Auth endpoints
+@app.post("/auth/token", response_model=schemas.Token)
+async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == form_data.username).first()
+    if not user or not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
 
-# Authentication endpoints
 @app.post("/auth/register", response_model=schemas.User)
 def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.email == user.email).first()
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
-    
-    db_user = db.query(User).filter(User.username == user.username).first()
-    if db_user:
-        raise HTTPException(status_code=400, detail="Username already taken")
     
     hashed_password = get_password_hash(user.password)
     db_user = User(
@@ -175,33 +183,16 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
         username=user.username,
         full_name=user.full_name,
         hashed_password=hashed_password,
-        avatar_url=user.avatar_url
     )
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
     return db_user
 
-@app.post("/auth/token", response_model=schemas.Token)
-def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = db.query(User).filter(
-        or_(User.email == form_data.username, User.username == form_data.username)
-    ).first()
-    if not user or not verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": str(user.id)}, expires_delta=access_token_expires
-    )
-    return {"access_token": access_token, "token_type": "bearer"}
-
 @app.get("/auth/me", response_model=schemas.User)
 def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
+
 
 # User endpoints
 @app.get("/users/me", response_model=schemas.User)
@@ -232,6 +223,7 @@ def read_user(user_id: int, db: Session = Depends(get_db)):
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
     return user
+
 
 # Workspace endpoints
 @app.post("/workspaces/", response_model=schemas.Workspace)
@@ -266,23 +258,6 @@ def read_workspace(workspace_id: int, current_user: User = Depends(get_current_u
     
     return workspace
 
-@app.put("/workspaces/{workspace_id}", response_model=schemas.Workspace)
-def update_workspace(workspace_id: int, workspace_update: schemas.WorkspaceUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
-    if not workspace:
-        raise HTTPException(status_code=404, detail="Workspace not found")
-    
-    # Check if user is owner or admin
-    if workspace.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Only workspace owner can update")
-    
-    for key, value in workspace_update.dict(exclude_unset=True).items():
-        setattr(workspace, key, value)
-    
-    db.commit()
-    db.refresh(workspace)
-    return workspace
-
 # Project endpoints
 @app.post("/projects/", response_model=schemas.Project)
 def create_project(project: schemas.ProjectCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -301,6 +276,23 @@ def create_project(project: schemas.ProjectCreate, current_user: User = Depends(
     
     # Add creator as member
     db_project.members.append(current_user)
+    db.commit()
+    
+    # Create default task lists
+    default_lists = [
+        {"name": "To Do", "position": 0},
+        {"name": "In Progress", "position": 1},
+        {"name": "Done", "position": 2}
+    ]
+    
+    for list_data in default_lists:
+        task_list = TaskList(
+            name=list_data["name"],
+            project_id=db_project.id,
+            position=list_data["position"]
+        )
+        db.add(task_list)
+    
     db.commit()
     
     return db_project
@@ -324,6 +316,35 @@ def read_project(project_id: int, current_user: User = Depends(get_current_user)
         raise HTTPException(status_code=403, detail="Not a member of this project")
     
     return project
+
+@app.put("/projects/{project_id}", response_model=schemas.Project)
+def update_project(project_id: int, project_update: schemas.ProjectUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    if current_user not in project.members:
+        raise HTTPException(status_code=403, detail="Not a member of this project")
+    
+    for key, value in project_update.dict(exclude_unset=True).items():
+        setattr(project, key, value)
+    
+    db.commit()
+    db.refresh(project)
+    return project
+
+@app.delete("/projects/{project_id}")
+def delete_project(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    if project.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only project owner can delete")
+    
+    db.delete(project)
+    db.commit()
+    return {"message": "Project deleted successfully"}
 
 # Task List endpoints
 @app.post("/task-lists/", response_model=schemas.TaskList)
@@ -414,139 +435,6 @@ def read_task(task_id: int, current_user: User = Depends(get_current_user), db: 
         raise HTTPException(status_code=403, detail="Not a member of this project")
     
     return task
-
-@app.put("/tasks/{task_id}", response_model=schemas.Task)
-async def update_task(task_id: int, task_update: schemas.TaskUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    task = db.query(Task).filter(Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    
-    # Check project access
-    if current_user not in task.project.members:
-        raise HTTPException(status_code=403, detail="Not a member of this project")
-    
-    # Update task fields
-    update_data = task_update.dict(exclude_unset=True, exclude={'assignee_ids'})
-    for key, value in update_data.items():
-        setattr(task, key, value)
-    
-    # Update assignees if provided
-    if task_update.assignee_ids is not None:
-        assignees = db.query(User).filter(User.id.in_(task_update.assignee_ids)).all()
-        task.assignees = assignees
-    
-    # Mark as completed if status changed to done
-    if task_update.status == TaskStatus.DONE and task.completed_at is None:
-        task.completed_at = datetime.utcnow()
-    elif task_update.status != TaskStatus.DONE:
-        task.completed_at = None
-    
-    db.commit()
-    db.refresh(task)
-    
-    # Broadcast update
-    await manager.broadcast_to_room({
-        "type": "task_updated",
-        "data": {"task_id": task.id, "project_id": task.project_id}
-    }, f"project_{task.project_id}")
-    
-    return task
-
-@app.post("/tasks/{task_id}/move")
-async def move_task(task_id: int, move_data: schemas.TaskMove, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    task = db.query(Task).filter(Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    
-    # Check project access
-    if current_user not in task.project.members:
-        raise HTTPException(status_code=403, detail="Not a member of this project")
-    
-    # Update task list and position
-    task.task_list_id = move_data.task_list_id
-    task.position = move_data.position
-    
-    db.commit()
-    
-    # Broadcast move
-    await manager.broadcast_to_room({
-        "type": "task_moved",
-        "data": {"task_id": task.id, "project_id": task.project_id, "new_list_id": move_data.task_list_id}
-    }, f"project_{task.project_id}")
-    
-    return {"message": "Task moved successfully"}
-
-@app.post("/tasks/{task_id}/archive", response_model=schemas.Task)
-def archive_task(task_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    task = db.query(Task).filter(Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-
-    if current_user not in task.project.members:
-        raise HTTPException(status_code=403, detail="Not a member of this project")
-
-    task.is_active = False
-    db.commit()
-    db.refresh(task)
-    return task
-
-@app.post("/tasks/{task_id}/restore", response_model=schemas.Task)
-def restore_task(task_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    task = db.query(Task).filter(Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-
-    if current_user not in task.project.members:
-        raise HTTPException(status_code=403, detail="Not a member of this project")
-
-    task.is_active = True
-    db.commit()
-    db.refresh(task)
-    return task
-
-@app.delete("/tasks/{task_id}", response_model=schemas.Task)
-def delete_task(task_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    task = db.query(Task).filter(Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    
-    # Check project access
-    if current_user not in task.project.members:
-        raise HTTPException(status_code=403, detail="Not a member of this project")
-    
-    db.delete(task)
-    db.commit()
-    return task
-
-# Comment endpoints
-@app.post("/comments/", response_model=schemas.Comment)
-async def create_comment(comment: schemas.CommentCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    # Check task access
-    task = db.query(Task).filter(Task.id == comment.task_id).first()
-    if not task or current_user not in task.project.members:
-        raise HTTPException(status_code=403, detail="Not authorized to comment on this task")
-    
-    db_comment = Comment(**comment.dict(), author_id=current_user.id)
-    db.add(db_comment)
-    db.commit()
-    db.refresh(db_comment)
-    
-    # Broadcast comment
-    await manager.broadcast_to_room({
-        "type": "comment_added",
-        "data": {"task_id": task.id, "comment_id": db_comment.id}
-    }, f"project_{task.project_id}")
-    
-    return db_comment
-
-@app.get("/comments/", response_model=List[schemas.Comment])
-def read_comments(task_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    # Check task access
-    task = db.query(Task).filter(Task.id == task_id).first()
-    if not task or current_user not in task.project.members:
-        raise HTTPException(status_code=403, detail="Not authorized to view comments")
-    
-    return db.query(Comment).filter(Comment.task_id == task_id, Comment.is_active == True).order_by(Comment.created_at).all()
 
 # Dashboard endpoint
 @app.get("/dashboard", response_model=schemas.DashboardData)

@@ -1,39 +1,28 @@
+# backend/app/schemas/schemas.py
 from pydantic import BaseModel, EmailStr, ConfigDict
 from typing import List, Optional, Dict, Any
 from datetime import datetime
-from enum import Enum
-
-# Enums
-class TaskStatus(str, Enum):
-    TODO = "todo"
-    IN_PROGRESS = "in_progress"
-    DONE = "done"
-    BLOCKED = "blocked"
-
-class TaskPriority(str, Enum):
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-    URGENT = "urgent"
+from app.models.models import TaskStatus, TaskPriority
 
 # User Schemas
 class UserBase(BaseModel):
     email: EmailStr
     username: str
     full_name: str
-    avatar_url: Optional[str] = None
 
 class UserCreate(UserBase):
     password: str
 
 class UserUpdate(BaseModel):
+    email: Optional[EmailStr] = None
+    username: Optional[str] = None
     full_name: Optional[str] = None
     avatar_url: Optional[str] = None
 
 class UserInDB(UserBase):
     id: int
+    avatar_url: Optional[str] = None
     is_active: bool
-    is_verified: bool
     created_at: datetime
     updated_at: Optional[datetime] = None
     
@@ -71,7 +60,7 @@ class Workspace(WorkspaceInDB):
 class ProjectBase(BaseModel):
     name: str
     description: Optional[str] = None
-    color: str = "#3b82f6"
+    color: Optional[str] = "#3b82f6"
 
 class ProjectCreate(ProjectBase):
     workspace_id: int
@@ -92,23 +81,20 @@ class ProjectInDB(ProjectBase):
     model_config = ConfigDict(from_attributes=True)
 
 class Project(ProjectInDB):
+    workspace: Workspace
     owner: User
     members: List[User] = []
 
 # TaskList Schemas
 class TaskListBase(BaseModel):
     name: str
-    description: Optional[str] = None
-    color: str = "#6b7280"
-    position: int = 0
+    position: Optional[int] = 0
 
 class TaskListCreate(TaskListBase):
     project_id: int
 
 class TaskListUpdate(BaseModel):
     name: Optional[str] = None
-    description: Optional[str] = None
-    color: Optional[str] = None
     position: Optional[int] = None
 
 class TaskListInDB(TaskListBase):
@@ -127,11 +113,11 @@ class TaskList(TaskListInDB):
 class TaskBase(BaseModel):
     title: str
     description: Optional[str] = None
-    status: TaskStatus = TaskStatus.TODO
-    priority: TaskPriority = TaskPriority.MEDIUM
-    position: int = 0
-    estimated_hours: Optional[int] = None
-    actual_hours: Optional[int] = None
+    status: Optional[TaskStatus] = TaskStatus.TODO
+    priority: Optional[TaskPriority] = TaskPriority.MEDIUM
+    position: Optional[int] = 0
+    estimated_hours: Optional[float] = None
+    actual_hours: Optional[float] = None
     due_date: Optional[datetime] = None
     start_date: Optional[datetime] = None
 
@@ -139,7 +125,7 @@ class TaskCreate(TaskBase):
     project_id: int
     task_list_id: Optional[int] = None
     parent_task_id: Optional[int] = None
-    assignee_ids: List[int] = []
+    assignee_ids: Optional[List[int]] = None
 
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
@@ -147,8 +133,8 @@ class TaskUpdate(BaseModel):
     status: Optional[TaskStatus] = None
     priority: Optional[TaskPriority] = None
     position: Optional[int] = None
-    estimated_hours: Optional[int] = None
-    actual_hours: Optional[int] = None
+    estimated_hours: Optional[float] = None
+    actual_hours: Optional[float] = None
     due_date: Optional[datetime] = None
     start_date: Optional[datetime] = None
     task_list_id: Optional[int] = None
@@ -218,30 +204,6 @@ class ActivityLog(ActivityLogBase):
     user: User
     
     model_config = ConfigDict(from_attributes=True)
-
-# Notification Schemas
-class NotificationBase(BaseModel):
-    title: str
-    message: str
-    entity_type: Optional[str] = None
-    entity_id: Optional[int] = None
-
-class NotificationCreate(NotificationBase):
-    user_id: int
-
-class Notification(NotificationBase):
-    id: int
-    user_id: int
-    is_read: bool
-    created_at: datetime
-    
-    model_config = ConfigDict(from_attributes=True)
-
-# WebSocket Message Schemas
-class WSMessage(BaseModel):
-    type: str
-    data: Dict[str, Any]
-    room: Optional[str] = None
 
 # Dashboard/Analytics Schemas
 class TaskSummary(BaseModel):
