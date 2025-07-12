@@ -44,38 +44,48 @@ function ProfilePage() {
       <h1 className="text-2xl font-bold mb-4">Profile Settings</h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+          <label htmlFor="profile-email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
           <input
+            id="profile-email"
+            name="email"
             type="email"
+            autoComplete="email"
             value={user.email}
             disabled
             className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+          <label htmlFor="profile-username" className="block text-sm font-medium text-gray-700 mb-1">Username</label>
           <input
+            id="profile-username"
+            name="username"
             type="text"
+            autoComplete="username"
             value={user.username}
             disabled
             className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+          <label htmlFor="profile-full-name" className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
           <input
+            id="profile-full-name"
             type="text"
             name="full_name"
+            autoComplete="name"
             value={formData.full_name}
             onChange={handleChange}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Avatar URL</label>
+          <label htmlFor="profile-avatar-url" className="block text-sm font-medium text-gray-700 mb-1">Avatar URL</label>
           <input
+            id="profile-avatar-url"
             type="text"
             name="avatar_url"
+            autoComplete="url"
             value={formData.avatar_url}
             onChange={handleChange}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg"

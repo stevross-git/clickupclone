@@ -94,12 +94,14 @@ function CreateTaskModal({ projectId, listId, onClose, onTaskCreated }) {
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Title */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="task-title" className="block text-sm font-medium text-gray-700 mb-2">
               Task Title *
             </label>
             <input
+              id="task-title"
               type="text"
               name="title"
+              autoComplete="off"
               value={formData.title}
               onChange={handleChange}
               placeholder="Enter task title..."
@@ -110,11 +112,13 @@ function CreateTaskModal({ projectId, listId, onClose, onTaskCreated }) {
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="task-description" className="block text-sm font-medium text-gray-700 mb-2">
               Description
             </label>
             <textarea
+              id="task-description"
               name="description"
+              autoComplete="off"
               value={formData.description}
               onChange={handleChange}
               placeholder="Describe the task..."
@@ -126,11 +130,13 @@ function CreateTaskModal({ projectId, listId, onClose, onTaskCreated }) {
           {/* Priority and Due Date Row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="task-priority" className="block text-sm font-medium text-gray-700 mb-2">
                 Priority
               </label>
               <select
+                id="task-priority"
                 name="priority"
+                autoComplete="off"
                 value={formData.priority}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
@@ -143,12 +149,14 @@ function CreateTaskModal({ projectId, listId, onClose, onTaskCreated }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="task-due-date" className="block text-sm font-medium text-gray-700 mb-2">
                 Due Date
               </label>
               <input
+                id="task-due-date"
                 type="date"
                 name="due_date"
+                autoComplete="off"
                 value={formData.due_date}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
@@ -158,12 +166,14 @@ function CreateTaskModal({ projectId, listId, onClose, onTaskCreated }) {
 
           {/* Estimated Hours */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="task-est-hours" className="block text-sm font-medium text-gray-700 mb-2">
               Estimated Hours
             </label>
             <input
+              id="task-est-hours"
               type="number"
               name="estimated_hours"
+              autoComplete="off"
               value={formData.estimated_hours}
               onChange={handleChange}
               placeholder="Enter estimated hours..."

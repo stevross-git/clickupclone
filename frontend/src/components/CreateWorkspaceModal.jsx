@@ -63,12 +63,14 @@ function CreateWorkspaceModal({ onClose, onWorkspaceCreated }) {
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="workspace-name" className="block text-sm font-medium text-gray-700 mb-2">
               Workspace Name *
             </label>
             <input
+              id="workspace-name"
               type="text"
               name="name"
+              autoComplete="organization"
               value={formData.name}
               onChange={handleChange}
               placeholder="Enter workspace name..."
@@ -78,11 +80,13 @@ function CreateWorkspaceModal({ onClose, onWorkspaceCreated }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="workspace-description" className="block text-sm font-medium text-gray-700 mb-2">
               Description
             </label>
             <textarea
+              id="workspace-description"
               name="description"
+              autoComplete="off"
               value={formData.description}
               onChange={handleChange}
               placeholder="Describe your workspace..."
