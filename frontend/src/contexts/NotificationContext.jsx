@@ -1,92 +1,342 @@
 // frontend/src/contexts/NotificationContext.jsx
-import React, { createContext, useContext, useState } from 'react';
-import { CheckCircleIcon, ExclamationTriangleIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import { Toaster, toast } from 'react-hot-toast';
+import apiService from '../services/api';
+import wsService from '../services/websocket';
+import { useAuth } from './AuthContext';
 
 const NotificationContext = createContext();
 
-export function useNotification() {
-  return useContext(NotificationContext);
-}
+const initialState = {
+  notifications: [],
+  unreadCount: 0,
+  isLoading: false,
+};
 
-export function NotificationProvider({ children }) {
-  const [notifications, setNotifications] = useState([]);
+const notificationReducer = (state, action) => {
+  switch (action.type) {
+    case 'SET_LOADING':
+      return { ...state, isLoading: action.payload };
 
-  const addNotification = (message, type = 'info', duration = 5000) => {
-    const id = Date.now();
-    const notification = { id, message, type };
-    
-    setNotifications(prev => [...prev, notification]);
-    
-    if (duration > 0) {
-      setTimeout(() => {
-        removeNotification(id);
-      }, duration);
+    case 'SET_NOTIFICATIONS':
+      const unreadCount = action.payload.filter((n) => n.status === 'unread').length;
+      return {
+        ...state,
+        notifications: action.payload,
+        unreadCount,
+        isLoading: false,
+      };
+
+    case 'ADD_NOTIFICATION':
+      const newNotifications = [action.payload, ...state.notifications];
+      const newUnreadCount = newNotifications.filter((n) => n.status === 'unread').length;
+      return {
+        ...state,
+        notifications: newNotifications,
+        unreadCount: newUnreadCount,
+      };
+
+    case 'MARK_READ':
+      const updatedNotifications = state.notifications.map((n) =>
+        n.id === action.payload ? { ...n, status: 'read', read_at: new Date().toISOString() } : n
+      );
+      const updatedUnreadCount = updatedNotifications.filter((n) => n.status === 'unread').length;
+      return {
+        ...state,
+        notifications: updatedNotifications,
+        unreadCount: updatedUnreadCount,
+      };
+
+    case 'MARK_ALL_READ':
+      const allReadNotifications = state.notifications.map((n) => ({
+        ...n,
+        status: 'read',
+        read_at: n.read_at || new Date().toISOString(),
+      }));
+      return {
+        ...state,
+        notifications: allReadNotifications,
+        unreadCount: 0,
+      };
+
+    case 'CLEAR_ALL':
+      return {
+        ...state,
+        notifications: [],
+        unreadCount: 0,
+      };
+
+    case 'RESET':
+      return initialState;
+
+    default:
+      return state;
+  }
+};
+
+export const NotificationProvider = ({ children }) => {
+  const [state, dispatch] = useReducer(notificationReducer, initialState);
+  const { user, loading: authLoading } = useAuth();
+
+  useEffect(() => {
+    // Only load notifications if user is authenticated and auth is not loading
+    if (user && !authLoading) {
+      loadNotifications();
+      setupWebSocketListeners();
+    } else if (!user && !authLoading) {
+      // Reset state when user logs out
+      dispatch({ type: 'RESET' });
     }
-    
-    return id;
+
+    return () => {
+      // Cleanup WebSocket listeners
+      if (wsService && wsService.off) {
+        wsService.off('notification', handleNewNotification);
+      }
+    };
+  }, [user, authLoading]);
+
+  const loadNotifications = async () => {
+    try {
+      dispatch({ type: 'SET_LOADING', payload: true });
+      const notifications = await apiService.getNotifications();
+      dispatch({ type: 'SET_NOTIFICATIONS', payload: notifications });
+    } catch (error) {
+      console.error('Failed to load notifications:', error);
+      dispatch({ type: 'SET_LOADING', payload: false });
+
+      // Don't show error toast for auth errors (user will be redirected to login)
+      if (error.response?.status !== 401) {
+        toast.error('Failed to load notifications');
+      }
+    }
   };
 
-  const removeNotification = (id) => {
-    setNotifications(prev => prev.filter(notification => notification.id !== id));
+  const setupWebSocketListeners = () => {
+    if (wsService && wsService.on) {
+      wsService.on('notification', handleNewNotification);
+    }
   };
 
-  const getIcon = (type) => {
+  const handleNewNotification = (notification) => {
+    dispatch({ type: 'ADD_NOTIFICATION', payload: notification });
+
+    // Show toast notification
+    showToastNotification(notification);
+  };
+
+  const showToastNotification = (notification) => {
+    const toastOptions = {
+      duration: 5000,
+      position: 'top-right',
+      style: {
+        background: '#ffffff',
+        color: '#374151',
+        border: '1px solid #e5e7eb',
+        borderRadius: '8px',
+        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+      },
+    };
+
+    // Different toast types based on notification content
+    if (notification.title.includes('Error') || notification.title.includes('Failed')) {
+      toast.error(notification.message, toastOptions);
+    } else if (notification.title.includes('Success') || notification.title.includes('Completed')) {
+      toast.success(notification.message, toastOptions);
+    } else if (notification.title.includes('Warning') || notification.title.includes('Reminder')) {
+      toast(notification.message, {
+        ...toastOptions,
+        icon: '⚠️',
+      });
+    } else {
+      toast(notification.message, {
+        ...toastOptions,
+        icon: '🔔',
+      });
+    }
+  };
+
+  const markAsRead = async (notificationId) => {
+    if (!user) return;
+
+    try {
+      await apiService.markNotificationRead(notificationId);
+      dispatch({ type: 'MARK_READ', payload: notificationId });
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
+      if (error.response?.status !== 401) {
+        toast.error('Failed to mark notification as read');
+      }
+    }
+  };
+
+  const markAllAsRead = async () => {
+    if (!user) return;
+
+    try {
+      const unreadNotifications = state.notifications.filter((n) => n.status === 'unread');
+
+      // Mark all unread notifications as read
+      await Promise.all(unreadNotifications.map((n) => apiService.markNotificationRead(n.id)));
+
+      dispatch({ type: 'MARK_ALL_READ' });
+      toast.success('All notifications marked as read');
+    } catch (error) {
+      console.error('Failed to mark all notifications as read:', error);
+      if (error.response?.status !== 401) {
+        toast.error('Failed to mark all notifications as read');
+      }
+    }
+  };
+
+  const clearAll = () => {
+    dispatch({ type: 'CLEAR_ALL' });
+    toast.success('All notifications cleared');
+  };
+
+  // Custom toast methods for different scenarios
+  const addNotification = (type, title, message, options = {}) => {
+    const toastOptions = {
+      duration: options.duration || 4000,
+      position: options.position || 'top-right',
+      ...options.style,
+    };
+
     switch (type) {
       case 'success':
-        return <CheckCircleIcon className="h-5 w-5 text-green-400" />;
+        toast.success(message, toastOptions);
+        break;
       case 'error':
-        return <ExclamationTriangleIcon className="h-5 w-5 text-red-400" />;
+        toast.error(message, toastOptions);
+        break;
+      case 'info':
+        toast(message, { ...toastOptions, icon: 'ℹ️' });
+        break;
+      case 'warning':
+        toast(message, { ...toastOptions, icon: '⚠️' });
+        break;
       default:
-        return <CheckCircleIcon className="h-5 w-5 text-blue-400" />;
+        toast(message, toastOptions);
     }
   };
 
-  const getStyles = (type) => {
-    switch (type) {
-      case 'success':
-        return 'bg-green-50 border-green-200 text-green-800';
-      case 'error':
-        return 'bg-red-50 border-red-200 text-red-800';
+  const showTaskNotification = (action, taskTitle, assignee = null) => {
+    let message = '';
+    let type = 'info';
+
+    switch (action) {
+      case 'created':
+        message = `New task created: ${taskTitle}`;
+        type = 'success';
+        break;
+      case 'assigned':
+        message = assignee
+          ? `${assignee} was assigned to: ${taskTitle}`
+          : `You were assigned to: ${taskTitle}`;
+        type = 'info';
+        break;
+      case 'completed':
+        message = `Task completed: ${taskTitle}`;
+        type = 'success';
+        break;
+      case 'commented':
+        message = `New comment on: ${taskTitle}`;
+        type = 'info';
+        break;
+      case 'due_soon':
+        message = `Task due soon: ${taskTitle}`;
+        type = 'warning';
+        break;
+      case 'overdue':
+        message = `Task overdue: ${taskTitle}`;
+        type = 'error';
+        break;
       default:
-        return 'bg-blue-50 border-blue-200 text-blue-800';
+        message = `Task updated: ${taskTitle}`;
     }
+
+    addNotification(type, action, message);
+  };
+
+  const showProjectNotification = (action, projectName) => {
+    let message = '';
+    let type = 'info';
+
+    switch (action) {
+      case 'created':
+        message = `New project created: ${projectName}`;
+        type = 'success';
+        break;
+      case 'invited':
+        message = `You were invited to project: ${projectName}`;
+        type = 'info';
+        break;
+      case 'updated':
+        message = `Project updated: ${projectName}`;
+        type = 'info';
+        break;
+      default:
+        message = `Project notification: ${projectName}`;
+    }
+
+    addNotification(type, action, message);
   };
 
   const value = {
+    ...state,
+    loadNotifications,
+    markAsRead,
+    markAllAsRead,
+    clearAll,
     addNotification,
-    removeNotification,
+    showTaskNotification,
+    showProjectNotification,
   };
 
   return (
     <NotificationContext.Provider value={value}>
       {children}
-      
-      {/* Notification Container */}
-      <div className="fixed top-4 right-4 z-50 space-y-2">
-        {notifications.map((notification) => (
-          <div
-            key={notification.id}
-            className={`max-w-sm w-full shadow-lg rounded-lg border p-4 ${getStyles(notification.type)} animate-in slide-in-from-right duration-300`}
-          >
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                {getIcon(notification.type)}
-              </div>
-              <div className="ml-3 flex-1">
-                <p className="text-sm font-medium">{notification.message}</p>
-              </div>
-              <div className="ml-4 flex-shrink-0">
-                <button
-                  onClick={() => removeNotification(notification.id)}
-                  className="rounded-md inline-flex text-gray-400 hover:text-gray-500 focus:outline-none"
-                >
-                  <XMarkIcon className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+      <Toaster
+        position="top-right"
+        reverseOrder={false}
+        gutter={8}
+        containerClassName=""
+        containerStyle={{}}
+        toastOptions={{
+          className: '',
+          duration: 4000,
+          style: {
+            background: '#ffffff',
+            color: '#374151',
+            border: '1px solid #e5e7eb',
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: '500',
+          },
+          success: {
+            iconTheme: {
+              primary: '#10b981',
+              secondary: '#ffffff',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#ffffff',
+            },
+          },
+        }}
+      />
     </NotificationContext.Provider>
   );
-}
+};
+
+export const useNotification = () => {
+  const context = useContext(NotificationContext);
+  if (!context) {
+    throw new Error('useNotification must be used within a NotificationProvider');
+  }
+  return context;
+};
+
+export default NotificationContext;

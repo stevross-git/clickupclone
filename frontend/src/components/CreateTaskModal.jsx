@@ -1,95 +1,288 @@
-// components/CreateTaskModal.jsx
+// frontend/src/components/CreateTaskModal.jsx
 import React, { useState, useEffect } from 'react';
+import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import apiClient from '../services/api';
+import apiService from '../services/api';
 import { useNotification } from '../contexts/NotificationContext';
 
-function CreateTaskModal({ projectId, listId, onClose, onTaskCreated }) {
+const CreateTaskModal = ({ isOpen, onClose, onSuccess, projects = [] }) => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
+    project_id: '',
+    task_list_id: '',
     priority: 'medium',
     due_date: '',
-    estimated_hours: '',
-    assignee_ids: []
+    assignee_ids: [],
   });
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [taskLists, setTaskLists] = useState([]);
+  const [projectMembers, setProjectMembers] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { addNotification } = useNotification();
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  const priorityOptions = [
+    { value: 'low', label: 'Low', color: 'text-green-600' },
+    { value: 'medium', label: 'Medium', color: 'text-blue-600' },
+    { value: 'high', label: 'High', color: 'text-orange-600' },
+    { value: 'urgent', label: 'Urgent', color: 'text-red-600' },
+  ];
 
-  const fetchUsers = async () => {
+  useEffect(() => {
+    if (formData.project_id) {
+      loadTaskLists(formData.project_id);
+      loadProjectMembers(formData.project_id);
+    }
+  }, [formData.project_id]);
+
+  const loadTaskLists = async (projectId) => {
     try {
-      const response = await apiClient.get('/users/');
-      setUsers(response.data);
+      const lists = await apiService.getTaskLists(projectId);
+      setTaskLists(lists);
+
+      // Auto-select first task list (usually "To Do")
+      if (lists.length > 0 && !formData.task_list_id) {
+        setFormData((prev) => ({
+          ...prev,
+          task_list_id: lists[0].id,
+        }));
+      }
     } catch (error) {
-      console.error('Error fetching users:', error);
+      console.error('Error loading task lists:', error);
     }
   };
 
-  const handleChange = (e) => {
-    const { name, value, type } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'number' ? (value ? parseInt(value) : '') : value
-    }));
-  };
-
-  const handleAssigneeChange = (userId) => {
-    setFormData(prev => ({
-      ...prev,
-      assignee_ids: prev.assignee_ids.includes(userId)
-        ? prev.assignee_ids.filter(id => id !== userId)
-        : [...prev.assignee_ids, userId]
-    }));
+  const loadProjectMembers = async (projectId) => {
+    try {
+      const project = await apiService.getProject(projectId);
+      setProjectMembers(project.members || []);
+    } catch (error) {
+      console.error('Error loading project members:', error);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.title.trim()) {
-      addNotification('Task title is required', 'error');
+      addNotification('error', 'Error', 'Task title is required');
+      return;
+    }
+    if (!formData.project_id) {
+      addNotification('error', 'Error', 'Please select a project');
       return;
     }
 
-    setLoading(true);
-
+    setIsSubmitting(true);
     try {
-      const taskData = {
-        ...formData,
-        project_id: projectId,
-        task_list_id: listId,
-        due_date: formData.due_date || null,
-        estimated_hours: formData.estimated_hours || null
-      };
+      const taskData = { ...formData };
 
-      const response = await apiClient.post('/tasks/', taskData);
-      onTaskCreated(response.data);
-      addNotification('Task created successfully', 'success');
+      // Convert due_date to proper format if provided
+      if (taskData.due_date) {
+        taskData.due_date = new Date(taskData.due_date).toISOString();
+      } else {
+        delete taskData.due_date;
+      }
+
+      await apiService.createTask(taskData);
+      addNotification('success', 'Success', 'Task created successfully!');
+      resetForm();
+      onSuccess();
     } catch (error) {
       console.error('Error creating task:', error);
-      addNotification('Error creating task', 'error');
+      addNotification('error', 'Error', 'Failed to create task');
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">Create New Task</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <XMarkIcon className="h-6 w-6" />
-          </button>
-        </div>
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      description: '',
+      project_id: '',
+      task_list_id: '',
+      priority: 'medium',
+      due_date: '',
+      assignee_ids: [],
+    });
+    setTaskLists([]);
+    setProjectMembers([]);
+  };
 
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: value,
+    });
+  };
+
+  const handleAssigneeChange = (e) => {
+    const { value, checked } = e.target;
+    const userId = parseInt(value);
+
+    setFormData((prev) => ({
+      ...prev,
+      assignee_ids: checked
+        ? [...prev.assignee_ids, userId]
+        : prev.assignee_ids.filter((id) => id !== userId),
+    }));
+  };
+
+  // Set default project if only one available
+  useEffect(() => {
+    if (projects.length === 1 && !formData.project_id) {
+      setFormData((prev) => ({
+        ...prev,
+        project_id: projects[0].id,
+      }));
+    }
+  }, [projects, formData.project_id]);
+
+  return (
+    <Transition appear show={isOpen} as={React.Fragment}>
+      <Dialog as="div" className="relative z-50" onClose={onClose}>
+        <Transition.Child
+          as={React.Fragment}
+          enter="ease-out duration-300"
+          enterFrom="opacity-0"
+          enterTo="opacity-100"
+          leave="ease-in duration-200"
+          leaveFrom="opacity-100"
+          leaveTo="opacity-0"
+        >
+          <div className="fixed inset-0 bg-black bg-opacity-25" />
+        </Transition.Child>
+
+
+        <div className="fixed inset-0 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4 text-center">
+            <Transition.Child
+              as={React.Fragment}
+              enter="ease-out duration-300"
+              enterFrom="opacity-0 scale-95"
+              enterTo="opacity-100 scale-100"
+              leave="ease-in duration-200"
+              leaveFrom="opacity-100 scale-100"
+              leaveTo="opacity-0 scale-95"
+            >
+              <Dialog.Panel className="w-full max-w-lg transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+                <div className="mb-4 flex items-center justify-between">
+                  <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
+                    Create New Task
+                  </Dialog.Title>
+                  <button
+                    onClick={onClose}
+                    className="text-gray-400 transition-colors hover:text-gray-600"
+                  >
+                    <XMarkIcon className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div>
+                    <label
+                      htmlFor="project_id"
+                      className="mb-1 block text-sm font-medium text-gray-700"
+                    >
+                      Project *
+                    </label>
+                    <select
+                      id="project_id"
+                      name="project_id"
+                      value={formData.project_id}
+                      onChange={handleChange}
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-purple-500"
+                      required
+                    >
+                      <option value="">Select a project</option>
+                      {projects.map((project) => (
+                        <option key={project.id} value={project.id}>
+                          {project.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="title" className="mb-1 block text-sm font-medium text-gray-700">
+                      Task Title *
+                    </label>
+                    <input
+                      type="text"
+                      id="title"
+                      name="title"
+                      value={formData.title}
+                      onChange={handleChange}
+                      placeholder="Enter task title"
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-purple-500"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="description"
+                      className="mb-1 block text-sm font-medium text-gray-700"
+                    >
+                      Description
+                    </label>
+                    <textarea
+                      id="description"
+                      name="description"
+                      value={formData.description}
+                      onChange={handleChange}
+                      placeholder="Enter task description"
+                      rows={3}
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-purple-500"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label
+                        htmlFor="task_list_id"
+                        className="mb-1 block text-sm font-medium text-gray-700"
+                      >
+                        List
+                      </label>
+                      <select
+                        id="task_list_id"
+                        name="task_list_id"
+                        value={formData.task_list_id}
+                        onChange={handleChange}
+                        className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-purple-500"
+                      >
+                        <option value="">Select list</option>
+                        {taskLists.map((list) => (
+                          <option key={list.id} value={list.id}>
+                            {list.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="priority"
+                        className="mb-1 block text-sm font-medium text-gray-700"
+                      >
+                        Priority
+                      </label>
+                      <select
+                        id="priority"
+                        name="priority"
+                        value={formData.priority}
+                        onChange={handleChange}
+                        className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-purple-500"
+                      >
+                        {priorityOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Title */}
@@ -183,71 +376,73 @@ function CreateTaskModal({ projectId, listId, onClose, onTaskCreated }) {
             />
           </div>
 
-          {/* Assignees */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Assign To
-            </label>
-            <div className="border border-gray-300 rounded-lg p-3 max-h-40 overflow-y-auto">
-              {users.length > 0 ? (
-                <div className="space-y-2">
-                  {users.map(user => (
-                    <label key={user.id} className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded">
-                      <input
-                        type="checkbox"
-                        checked={formData.assignee_ids.includes(user.id)}
-                        onChange={() => handleAssigneeChange(user.id)}
-                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                      />
-                      <div className="flex items-center space-x-2">
-                        <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-600 overflow-hidden">
-                          {user.avatar_url ? (
-                            <img
-                              src={user.avatar_url}
-                              alt={user.full_name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            user.full_name?.charAt(0).toUpperCase()
-                          )}
-                        </div>
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{user.full_name}</div>
-                          <div className="text-xs text-gray-500">{user.email}</div>
-                        </div>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-sm text-gray-500 text-center py-4">
-                  No users available
-                </div>
-              )}
-            </div>
-          </div>
 
-          {/* Actions */}
-          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading || !formData.title.trim()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {loading ? 'Creating...' : 'Create Task'}
-            </button>
+                  <div>
+                    <label
+                      htmlFor="due_date"
+                      className="mb-1 block text-sm font-medium text-gray-700"
+                    >
+                      Due Date
+                    </label>
+                    <input
+                      type="datetime-local"
+                      id="due_date"
+                      name="due_date"
+                      value={formData.due_date}
+                      onChange={handleChange}
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-purple-500"
+                    />
+                  </div>
+
+                  {projectMembers.length > 0 && (
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-gray-700">
+                        Assignees
+                      </label>
+                      <div className="max-h-32 space-y-2 overflow-y-auto">
+                        {projectMembers.map((member) => (
+                          <label key={member.id} className="flex items-center">
+                            <input
+                              type="checkbox"
+                              value={member.id}
+                              checked={formData.assignee_ids.includes(member.id)}
+                              onChange={handleAssigneeChange}
+                              className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                            />
+                            <span className="ml-2 text-sm text-gray-700">
+                              {member.full_name} ({member.email})
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mt-6 flex justify-end space-x-3">
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="rounded-md border border-gray-300 bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                      disabled={isSubmitting}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="rounded-md border border-transparent bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {isSubmitting ? 'Creating...' : 'Create Task'}
+                    </button>
+                  </div>
+                </form>
+              </Dialog.Panel>
+            </Transition.Child>
           </div>
-        </form>
-      </div>
-    </div>
+        </div>
+      </Dialog>
+    </Transition>
   );
-}
+};
 
 export default CreateTaskModal;

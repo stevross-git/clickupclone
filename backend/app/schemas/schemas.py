@@ -18,11 +18,15 @@ class UserUpdate(BaseModel):
     username: Optional[str] = None
     full_name: Optional[str] = None
     avatar_url: Optional[str] = None
+    timezone: Optional[str] = None
 
 class UserInDB(UserBase):
     id: int
     avatar_url: Optional[str] = None
+    timezone: str = "UTC"
     is_active: bool
+    is_verified: bool
+    last_login: Optional[datetime] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
     
@@ -42,11 +46,14 @@ class WorkspaceCreate(WorkspaceBase):
 class WorkspaceUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
+    settings: Optional[Dict[str, Any]] = None
 
 class WorkspaceInDB(WorkspaceBase):
     id: int
     owner_id: int
+    avatar_url: Optional[str] = None
     is_active: bool
+    settings: Dict[str, Any] = {}
     created_at: datetime
     updated_at: Optional[datetime] = None
     
@@ -69,12 +76,17 @@ class ProjectUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     color: Optional[str] = None
+    is_private: Optional[bool] = None
+    settings: Optional[Dict[str, Any]] = None
 
 class ProjectInDB(ProjectBase):
     id: int
     workspace_id: int
     owner_id: int
+    avatar_url: Optional[str] = None
     is_active: bool
+    is_private: bool
+    settings: Dict[str, Any] = {}
     created_at: datetime
     updated_at: Optional[datetime] = None
     
@@ -89,6 +101,7 @@ class Project(ProjectInDB):
 class TaskListBase(BaseModel):
     name: str
     position: Optional[int] = 0
+    color: Optional[str] = "#6b7280"
 
 class TaskListCreate(TaskListBase):
     project_id: int
@@ -96,6 +109,7 @@ class TaskListCreate(TaskListBase):
 class TaskListUpdate(BaseModel):
     name: Optional[str] = None
     position: Optional[int] = None
+    color: Optional[str] = None
 
 class TaskListInDB(TaskListBase):
     id: int
@@ -109,6 +123,31 @@ class TaskListInDB(TaskListBase):
 class TaskList(TaskListInDB):
     pass
 
+# Custom Field Schemas
+class CustomFieldBase(BaseModel):
+    name: str
+    field_type: str
+    options: Optional[List[str]] = []
+    is_required: Optional[bool] = False
+    position: Optional[int] = 0
+
+class CustomFieldCreate(CustomFieldBase):
+    project_id: int
+
+class CustomFieldUpdate(BaseModel):
+    name: Optional[str] = None
+    field_type: Optional[str] = None
+    options: Optional[List[str]] = None
+    is_required: Optional[bool] = None
+    position: Optional[int] = None
+
+class CustomField(CustomFieldBase):
+    id: int
+    project_id: int
+    created_at: datetime
+    
+    model_config = ConfigDict(from_attributes=True)
+
 # Task Schemas
 class TaskBase(BaseModel):
     title: str
@@ -117,15 +156,16 @@ class TaskBase(BaseModel):
     priority: Optional[TaskPriority] = TaskPriority.MEDIUM
     position: Optional[int] = 0
     estimated_hours: Optional[float] = None
-    actual_hours: Optional[float] = None
     due_date: Optional[datetime] = None
     start_date: Optional[datetime] = None
+    tags: Optional[List[str]] = []
+    custom_field_values: Optional[Dict[str, Any]] = {}
 
 class TaskCreate(TaskBase):
     project_id: int
     task_list_id: Optional[int] = None
     parent_task_id: Optional[int] = None
-    assignee_ids: Optional[List[int]] = None
+    assignee_ids: Optional[List[int]] = []
 
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
@@ -139,11 +179,8 @@ class TaskUpdate(BaseModel):
     start_date: Optional[datetime] = None
     task_list_id: Optional[int] = None
     assignee_ids: Optional[List[int]] = None
-    is_active: Optional[bool] = None
-
-class TaskMove(BaseModel):
-    task_list_id: int
-    position: int
+    tags: Optional[List[str]] = None
+    custom_field_values: Optional[Dict[str, Any]] = None
 
 class TaskInDB(TaskBase):
     id: int
@@ -151,6 +188,7 @@ class TaskInDB(TaskBase):
     task_list_id: Optional[int] = None
     creator_id: int
     parent_task_id: Optional[int] = None
+    actual_hours: Optional[float] = None
     completed_at: Optional[datetime] = None
     is_active: bool
     created_at: datetime
@@ -161,7 +199,36 @@ class TaskInDB(TaskBase):
 class Task(TaskInDB):
     creator: User
     assignees: List[User] = []
-    subtasks: List['Task'] = []
+    watchers: List[User] = []
+    subtasks: List["Task"] = []
+
+# Time Entry Schemas
+class TimeEntryBase(BaseModel):
+    description: Optional[str] = None
+    hours: float
+    date: Optional[datetime] = None
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    is_billable: Optional[bool] = True
+
+class TimeEntryCreate(TimeEntryBase):
+    task_id: int
+
+class TimeEntryUpdate(BaseModel):
+    description: Optional[str] = None
+    hours: Optional[float] = None
+    date: Optional[datetime] = None
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    is_billable: Optional[bool] = None
+
+class TimeEntry(TimeEntryBase):
+    id: int
+    task_id: int
+    user_id: int
+    created_at: datetime
+    
+    model_config = ConfigDict(from_attributes=True)
 
 # Comment Schemas
 class CommentBase(BaseModel):
@@ -172,49 +239,99 @@ class CommentCreate(CommentBase):
     parent_comment_id: Optional[int] = None
 
 class CommentUpdate(BaseModel):
-    content: Optional[str] = None
+    content: str
 
-class CommentInDB(CommentBase):
+class Comment(CommentBase):
     id: int
     task_id: int
     author_id: int
     parent_comment_id: Optional[int] = None
     is_active: bool
+    edited_at: Optional[datetime] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
+    author: User
+    replies: List["Comment"] = []
     
     model_config = ConfigDict(from_attributes=True)
 
-class Comment(CommentInDB):
-    author: User
-    replies: List['Comment'] = []
+# Attachment Schemas
+class AttachmentBase(BaseModel):
+    filename: str
+    original_filename: str
+    file_size: int
+    content_type: str
 
-# Activity Log Schemas
-class ActivityLogBase(BaseModel):
-    action: str
-    entity_type: str
-    entity_id: int
-    old_value: Optional[Dict[str, Any]] = None
-    new_value: Optional[Dict[str, Any]] = None
+class Attachment(AttachmentBase):
+    id: int
+    file_path: str
+    task_id: int
+    uploaded_by_id: int
+    created_at: datetime
+    uploaded_by: User
+    
+    model_config = ConfigDict(from_attributes=True)
 
-class ActivityLog(ActivityLogBase):
+# Goal Schemas
+class GoalBase(BaseModel):
+    title: str
+    description: Optional[str] = None
+    target_value: Optional[float] = None
+    unit: Optional[str] = None
+    due_date: Optional[datetime] = None
+
+class GoalCreate(GoalBase):
+    workspace_id: int
+
+class GoalUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    target_value: Optional[float] = None
+    current_value: Optional[float] = None
+    unit: Optional[str] = None
+    due_date: Optional[datetime] = None
+
+class Goal(GoalBase):
+    id: int
+    workspace_id: int
+    owner_id: int
+    current_value: float = 0
+    is_active: bool
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    owner: User
+    
+    model_config = ConfigDict(from_attributes=True)
+
+# Notification Schemas
+class NotificationBase(BaseModel):
+    title: str
+    message: str
+
+class NotificationCreate(NotificationBase):
+    user_id: int
+    entity_type: Optional[str] = None
+    entity_id: Optional[int] = None
+    action_url: Optional[str] = None
+
+class Notification(NotificationBase):
     id: int
     user_id: int
+    status: str  # Changed from NotificationStatus enum to str
+    entity_type: Optional[str] = None
+    entity_id: Optional[int] = None
+    action_url: Optional[str] = None
     created_at: datetime
-    user: User
+    read_at: Optional[datetime] = None
     
     model_config = ConfigDict(from_attributes=True)
 
-# Dashboard/Analytics Schemas
+# Dashboard Schemas
 class TaskSummary(BaseModel):
     total_tasks: int
     completed_tasks: int
     in_progress_tasks: int
     overdue_tasks: int
-
-class ProjectSummary(BaseModel):
-    project: Project
-    task_summary: TaskSummary
 
 class DashboardData(BaseModel):
     workspaces: List[Workspace]
@@ -222,23 +339,20 @@ class DashboardData(BaseModel):
     recent_tasks: List[Task]
     task_summary: TaskSummary
 
-# Auth Schemas
+# Token Schemas
 class Token(BaseModel):
     access_token: str
     token_type: str
 
-class TokenPayload(BaseModel):
-    sub: Optional[int] = None
+class TokenData(BaseModel):
+    username: Optional[str] = None
 
-# Bulk Operations
-class BulkTaskUpdate(BaseModel):
-    task_ids: List[int]
-    updates: TaskUpdate
 
-class BulkTaskMove(BaseModel):
-    task_ids: List[int]
-    target_list_id: int
-    positions: List[int]
+# WebSocket Schemas
+class WSMessage(BaseModel):
+    type: str
+    data: Dict[str, Any]
+    room: Optional[str] = None
 
 # Search and Filter Schemas
 class TaskFilter(BaseModel):

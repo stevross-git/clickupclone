@@ -1,74 +1,200 @@
 // frontend/src/contexts/AuthContext.jsx
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import apiClient from '../services/api';
+import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import apiService from '../services/api';
+import wsService from '../services/websocket';
+import toast from 'react-hot-toast';
 
 const AuthContext = createContext();
 
-export function useAuth() {
-  return useContext(AuthContext);
-}
+const initialState = {
+  user: null,
+  isAuthenticated: false,
+  isLoading: true,
+  error: null,
+};
 
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+const authReducer = (state, action) => {
+  switch (action.type) {
+    case 'SET_LOADING':
+      return { ...state, isLoading: action.payload };
+
+    case 'SET_USER':
+      return {
+        ...state,
+        user: action.payload,
+        isAuthenticated: !!action.payload,
+        isLoading: false,
+        error: null,
+      };
+
+    case 'SET_ERROR':
+      return {
+        ...state,
+        error: action.payload,
+        isLoading: false,
+      };
+
+    case 'LOGOUT':
+      return {
+        ...initialState,
+        isLoading: false,
+      };
+
+    case 'UPDATE_USER':
+      return {
+        ...state,
+        user: { ...state.user, ...action.payload },
+      };
+
+    default:
+      return state;
+  }
+};
+
+export const AuthProvider = ({ children }) => {
+  const [state, dispatch] = useReducer(authReducer, initialState);
 
   useEffect(() => {
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      apiClient.get('/auth/me')
-        .then(response => {
-          setUser(response.data);
-        })
-        .catch(() => {
-          localStorage.removeItem('accessToken');
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    } else {
-      setLoading(false);
-    }
+    initializeAuth();
   }, []);
 
+  const initializeAuth = async () => {
+    try {
+      dispatch({ type: 'SET_LOADING', payload: true });
+
+      // Check for accessToken (to match your apiClient)
+      const token = localStorage.getItem('accessToken');
+
+      if (token) {
+        try {
+          // Verify token is still valid by fetching current user
+          const currentUser = await apiService.getCurrentUser();
+          dispatch({ type: 'SET_USER', payload: currentUser });
+
+          // Connect WebSocket if available
+          if (wsService && wsService.connect) {
+            wsService.connect(token);
+            wsService.joinRoom(`user_${currentUser.id}`);
+          }
+        } catch (error) {
+          // Token is invalid
+          localStorage.removeItem('accessToken');
+          dispatch({ type: 'SET_USER', payload: null });
+        }
+      } else {
+        dispatch({ type: 'SET_USER', payload: null });
+      }
+    } catch (error) {
+      console.error('Auth initialization error:', error);
+      dispatch({ type: 'SET_ERROR', payload: error.message });
+    }
+  };
+
   const login = async (email, password) => {
-    const formData = new URLSearchParams();
-    formData.append('username', email);
-    formData.append('password', password);
+    try {
+      dispatch({ type: 'SET_LOADING', payload: true });
+      dispatch({ type: 'SET_ERROR', payload: null });
 
-    const response = await apiClient.post('/auth/token', formData, {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    });
+      // Call apiService.login with email and password
+      const loginData = await apiService.login(email, password);
 
-    localStorage.setItem('accessToken', response.data.access_token);
-    
-    const userResponse = await apiClient.get('/auth/me');
-    setUser(userResponse.data);
-    
-    return userResponse.data;
+      // Get current user data
+      const user = await apiService.getCurrentUser();
+
+      dispatch({ type: 'SET_USER', payload: user });
+
+      // Connect WebSocket if available
+      if (wsService && wsService.connect) {
+        const token = localStorage.getItem('accessToken');
+        wsService.connect(token);
+        wsService.joinRoom(`user_${user.id}`);
+      }
+
+      toast.success(`Welcome back, ${user.full_name}!`);
+      return { success: true };
+    } catch (error) {
+      const message = error.response?.data?.detail || 'Login failed';
+      dispatch({ type: 'SET_ERROR', payload: message });
+      toast.error(message);
+      return { success: false, error: message };
+    }
   };
 
   const register = async (userData) => {
-    const response = await apiClient.post('/auth/register', userData);
-    return response.data;
+    try {
+      dispatch({ type: 'SET_LOADING', payload: true });
+      dispatch({ type: 'SET_ERROR', payload: null });
+
+      await apiService.register(userData);
+      toast.success('Registration successful! Please log in.');
+
+      return { success: true };
+    } catch (error) {
+      const message = error.response?.data?.detail || 'Registration failed';
+      dispatch({ type: 'SET_ERROR', payload: message });
+      toast.error(message);
+      return { success: false, error: message };
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
   };
 
   const logout = () => {
     localStorage.removeItem('accessToken');
-    setUser(null);
+
+    // Disconnect WebSocket if available
+    if (wsService && wsService.disconnect) {
+      wsService.disconnect();
+    }
+
+    dispatch({ type: 'LOGOUT' });
+    toast.success('Logged out successfully');
+  };
+
+  const updateProfile = async (profileData) => {
+    try {
+      // Assuming you have an update user method in apiService
+      const updatedUser = await apiService.updateUser(profileData);
+      dispatch({ type: 'UPDATE_USER', payload: updatedUser });
+      toast.success('Profile updated successfully');
+      return { success: true };
+    } catch (error) {
+      const message = error.response?.data?.detail || 'Profile update failed';
+      toast.error(message);
+      return { success: false, error: message };
+    }
+  };
+
+  const refreshUser = async () => {
+    try {
+      const user = await apiService.getCurrentUser();
+      dispatch({ type: 'SET_USER', payload: user });
+    } catch (error) {
+      console.error('Failed to refresh user:', error);
+    }
   };
 
   const value = {
-    user,
-    setUser,
+    ...state,
+    // Provide both naming conventions for compatibility
+    user: state.user,
+    loading: state.isLoading,
     login,
     register,
     logout,
-    loading
+    updateProfile,
+    refreshUser,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
-}
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+
+export default AuthContext;
