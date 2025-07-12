@@ -44,6 +44,7 @@ TimeEntry = models.TimeEntry
 Attachment = models.Attachment
 TaskStatus = models.TaskStatus
 TaskPriority = models.TaskPriority
+Goal = models.Goal
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -533,6 +534,53 @@ def get_custom_field_values(task_id: int, current_user: User = Depends(get_curre
     if not task or current_user not in task.project.members:
         raise HTTPException(status_code=404, detail="Task not found")
     return task.custom_field_values
+
+# Goal endpoints
+@app.post("/goals/", response_model=schemas.Goal)
+def create_goal(goal: schemas.GoalCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    workspace = db.query(Workspace).filter(Workspace.id == goal.workspace_id).first()
+    if not workspace or current_user not in workspace.members:
+        raise HTTPException(status_code=403, detail="Not a member of this workspace")
+
+    db_goal = Goal(**goal.dict(), owner_id=current_user.id)
+    db.add(db_goal)
+    db.commit()
+    db.refresh(db_goal)
+    return db_goal
+
+@app.get("/goals/", response_model=List[schemas.Goal])
+def read_goals(workspace_id: Optional[int] = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    query = db.query(Goal).join(Workspace).join(Workspace.members).filter(User.id == current_user.id)
+    if workspace_id:
+        query = query.filter(Goal.workspace_id == workspace_id)
+    return query.all()
+
+@app.get("/goals/{goal_id}", response_model=schemas.Goal)
+def read_goal(goal_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    goal = db.query(Goal).filter(Goal.id == goal_id).first()
+    if not goal or current_user not in goal.workspace.members:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    return goal
+
+@app.put("/goals/{goal_id}", response_model=schemas.Goal)
+def update_goal(goal_id: int, goal_update: schemas.GoalUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    goal = db.query(Goal).filter(Goal.id == goal_id).first()
+    if not goal or current_user not in goal.workspace.members:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    for key, value in goal_update.dict(exclude_unset=True).items():
+        setattr(goal, key, value)
+    db.commit()
+    db.refresh(goal)
+    return goal
+
+@app.delete("/goals/{goal_id}")
+def delete_goal(goal_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    goal = db.query(Goal).filter(Goal.id == goal_id).first()
+    if not goal or current_user not in goal.workspace.members:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    db.delete(goal)
+    db.commit()
+    return {"detail": "Goal deleted"}
 
 # Dashboard endpoint
 @app.get("/dashboard", response_model=schemas.DashboardData)

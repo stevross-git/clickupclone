@@ -316,3 +316,34 @@ class Attachment(AttachmentBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+# Goal Schemas
+class GoalBase(BaseModel):
+    title: str
+    description: Optional[str] = None
+    workspace_id: int
+    due_date: Optional[datetime] = None
+    progress: Optional[float] = 0.0
+    is_completed: Optional[bool] = False
+
+class GoalCreate(GoalBase):
+    pass
+
+class GoalUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    workspace_id: Optional[int] = None
+    due_date: Optional[datetime] = None
+    progress: Optional[float] = None
+    is_completed: Optional[bool] = None
+
+class GoalInDB(GoalBase):
+    id: int
+    owner_id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+class Goal(GoalInDB):
+    owner: User
+
