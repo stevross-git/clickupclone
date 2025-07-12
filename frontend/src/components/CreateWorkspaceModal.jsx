@@ -56,6 +56,7 @@ const CreateWorkspaceModal = ({ isOpen, onClose, onSuccess }) => {
           <div className="fixed inset-0 bg-black bg-opacity-25" />
         </Transition.Child>
 
+
         <div className="fixed inset-0 overflow-y-auto">
           <div className="flex min-h-full items-center justify-center p-4 text-center">
             <Transition.Child
@@ -96,6 +97,42 @@ const CreateWorkspaceModal = ({ isOpen, onClose, onSuccess }) => {
                       required
                     />
                   </div>
+=======
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label htmlFor="workspace-name" className="block text-sm font-medium text-gray-700 mb-2">
+              Workspace Name *
+            </label>
+            <input
+              id="workspace-name"
+              type="text"
+              name="name"
+              autoComplete="organization"
+              value={formData.name}
+              onChange={handleChange}
+              placeholder="Enter workspace name..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"
+              required
+            />
+          </div>
+
+          <div>
+            <label htmlFor="workspace-description" className="block text-sm font-medium text-gray-700 mb-2">
+              Description
+            </label>
+            <textarea
+              id="workspace-description"
+              name="description"
+              autoComplete="off"
+              value={formData.description}
+              onChange={handleChange}
+              placeholder="Describe your workspace..."
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"
+            />
+          </div>
+
 
                   <div>
                     <label

@@ -1,5 +1,15 @@
 # backend/app/main.py
-from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect, status, File, UploadFile, Form
+
+from fastapi import (
+    FastAPI,
+    Depends,
+    HTTPException,
+    WebSocket,
+    WebSocketDisconnect,
+    status,
+    UploadFile,
+    File,
+)
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -23,12 +33,29 @@ from app.core.config import settings
 from app.core.security import verify_password, get_password_hash, create_access_token, validate_password
 from app.db.session import SessionLocal, engine
 
+
 # Import all models
 from app.models.models import (
     Base, User, Workspace, Project, TaskList, Task, Comment, 
     ActivityLog, TaskStatus, TaskPriority, TimeEntry, Goal,
     Notification, CustomField, Attachment, TaskDependency
-)
+
+# Import models for convenience
+Base = models.Base
+User = models.User
+Workspace = models.Workspace
+Project = models.Project
+TaskList = models.TaskList
+Task = models.Task
+Comment = models.Comment
+ActivityLog = models.ActivityLog
+CustomField = models.CustomField
+TaskCustomField = models.TaskCustomField
+TimeEntry = models.TimeEntry
+Attachment = models.Attachment
+TaskStatus = models.TaskStatus
+TaskPriority = models.TaskPriority
+
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -573,6 +600,7 @@ async def update_task(task_id: int, task_update: schemas.TaskUpdate, current_use
     project = db.query(Project).filter(Project.id == task.project_id).first()
     if not project or (current_user not in project.members and project.owner_id != current_user.id):
         raise HTTPException(status_code=403, detail="Not a member of this project")
+
     
     # Store old values for activity log
     old_values = {
@@ -631,6 +659,100 @@ async def create_time_entry(time_entry: schemas.TimeEntryCreate, current_user: U
     task = db.query(Task).filter(Task.id == time_entry.task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+
+
+    return task
+
+# Time entry endpoints
+@app.post("/tasks/{task_id}/time-entries", response_model=schemas.TimeEntry)
+def create_time_entry(task_id: int, entry: schemas.TimeEntryCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task or current_user not in task.project.members:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    db_entry = TimeEntry(
+        task_id=task_id,
+        user_id=current_user.id,
+        start_time=entry.start_time,
+        end_time=entry.end_time,
+        duration=entry.duration,
+    )
+    db.add(db_entry)
+    db.commit()
+    db.refresh(db_entry)
+    return db_entry
+
+@app.get("/tasks/{task_id}/time-entries", response_model=List[schemas.TimeEntry])
+def read_time_entries(task_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task or current_user not in task.project.members:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task.time_entries
+
+# Attachment endpoints
+@app.post("/tasks/{task_id}/attachments", response_model=schemas.Attachment)
+async def upload_attachment(task_id: int, file: UploadFile = File(...), current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task or current_user not in task.project.members:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    os.makedirs(settings.UPLOAD_FOLDER, exist_ok=True)
+    file_location = os.path.join(settings.UPLOAD_FOLDER, file.filename)
+    with open(file_location, "wb") as buffer:
+        buffer.write(await file.read())
+
+    attachment = Attachment(task_id=task_id, filename=file.filename, file_path=file_location)
+    db.add(attachment)
+    db.commit()
+    db.refresh(attachment)
+    return attachment
+
+@app.get("/tasks/{task_id}/attachments", response_model=List[schemas.Attachment])
+def get_attachments(task_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task or current_user not in task.project.members:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task.attachments
+
+# Custom field endpoints
+@app.post("/custom-fields", response_model=schemas.CustomField)
+def create_custom_field(field: schemas.CustomFieldCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    db_field = CustomField(**field.dict())
+    db.add(db_field)
+    db.commit()
+    db.refresh(db_field)
+    return db_field
+
+@app.get("/custom-fields", response_model=List[schemas.CustomField])
+def read_custom_fields(workspace_id: Optional[int] = None, db: Session = Depends(get_db)):
+    query = db.query(CustomField)
+    if workspace_id:
+        query = query.filter(CustomField.workspace_id == workspace_id)
+    return query.all()
+
+@app.post("/tasks/{task_id}/custom-fields/{field_id}", response_model=schemas.TaskCustomFieldValue)
+def set_custom_field_value(task_id: int, field_id: int, value: Dict[str, Any], current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task or current_user not in task.project.members:
+        raise HTTPException(status_code=404, detail="Task not found")
+    db_value = TaskCustomField(task_id=task_id, field_id=field_id, value=value.get("value"))
+    db.add(db_value)
+    db.commit()
+    db.refresh(db_value)
+    return db_value
+
+@app.get("/tasks/{task_id}/custom-fields", response_model=List[schemas.TaskCustomFieldValue])
+def get_custom_field_values(task_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task or current_user not in task.project.members:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task.custom_field_values
+
+# Dashboard endpoint
+@app.get("/dashboard", response_model=schemas.DashboardData)
+def get_dashboard(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    # Get user's workspaces
+    workspaces = current_user.workspaces
     
     project = db.query(Project).filter(Project.id == task.project_id).first()
     if not project or (current_user not in project.members and project.owner_id != current_user.id):

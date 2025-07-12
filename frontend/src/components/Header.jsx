@@ -72,7 +72,33 @@ const Header = ({ onMenuClick }) => {
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-gray-200 px-4 py-4 sm:px-6 lg:px-8">
       <div className="flex items-center justify-between">
+
         {/* Left side */}
+
+        {/* Search Bar */}
+        <div className="flex-1 max-w-lg">
+          <form onSubmit={handleSearch} className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+            </div>
+            <label htmlFor="header-search" className="sr-only">
+              Search
+            </label>
+            <input
+              id="header-search"
+              name="search"
+              type="text"
+              autoComplete="off"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search tasks, projects..."
+              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            />
+          </form>
+        </div>
+        
+        {/* Right side - Notifications and User Menu */}
+
         <div className="flex items-center space-x-4">
           {/* Mobile menu button */}
           <button

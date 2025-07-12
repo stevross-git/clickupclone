@@ -347,8 +347,86 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     username: Optional[str] = None
 
+
 # WebSocket Schemas
 class WSMessage(BaseModel):
     type: str
     data: Dict[str, Any]
     room: Optional[str] = None
+
+# Search and Filter Schemas
+class TaskFilter(BaseModel):
+    project_id: Optional[int] = None
+    assignee_id: Optional[int] = None
+    status: Optional[TaskStatus] = None
+    priority: Optional[TaskPriority] = None
+    due_date_start: Optional[datetime] = None
+    due_date_end: Optional[datetime] = None
+    search: Optional[str] = None
+
+class SearchResults(BaseModel):
+    tasks: List[Task]
+    projects: List[Project]
+    users: List[User]
+# Custom Field Schemas
+class CustomFieldBase(BaseModel):
+    name: str
+    field_type: str = "text"
+    options: Optional[str] = None
+    workspace_id: Optional[int] = None
+    is_required: bool = False
+
+class CustomFieldCreate(CustomFieldBase):
+    pass
+
+class CustomFieldInDB(CustomFieldBase):
+    id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+class CustomField(CustomFieldInDB):
+    pass
+
+class TaskCustomFieldValue(BaseModel):
+    id: int
+    task_id: int
+    field: CustomField
+    value: Optional[str] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+# Time Entry Schemas
+class TimeEntryBase(BaseModel):
+    start_time: datetime
+    end_time: datetime
+    duration: float
+
+class TimeEntryCreate(TimeEntryBase):
+    task_id: int
+
+class TimeEntryInDB(TimeEntryBase):
+    id: int
+    task_id: int
+    user_id: int
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+class TimeEntry(TimeEntryInDB):
+    pass
+
+# Attachment Schemas
+class AttachmentBase(BaseModel):
+    filename: str
+    file_path: str
+
+class Attachment(AttachmentBase):
+    id: int
+    task_id: int
+    uploaded_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+

@@ -10,6 +10,11 @@ import DebugInfo from './components/DebugInfo';
 // Import only existing pages
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
+import ProjectView from './pages/ProjectView';
+import ProfilePage from './pages/ProfilePage';
+import Layout from './components/Layout';
+import TimeTracking from './pages/TimeTracking';
+
 
 // Import CSS
 import './index.css';
@@ -34,12 +39,15 @@ const CalendarView = () => (
   </div>
 );
 
+
 const TimeTrackingPage = () => (
   <div className="p-8 text-center">
     <h1 className="mb-4 text-2xl font-bold text-gray-900">Time Tracking</h1>
     <p className="text-gray-600">Time tracking functionality coming soon...</p>
   </div>
 );
+=======
+
 
 const GoalsPage = () => (
   <div className="p-8 text-center">
@@ -93,6 +101,9 @@ function App() {
                 <Route path="calendar" element={<CalendarView />} />
                 <Route path="time-tracking" element={<TimeTrackingPage />} />
                 <Route path="goals" element={<GoalsPage />} />
+                <Route path="inbox" element={<InboxPage />} />
+                <Route path="calendar" element={<CalendarPage />} />
+                <Route path="time-tracking" element={<TimeTracking />} />
                 <Route path="reports" element={<ReportsPage />} />
                 <Route path="notifications" element={<NotificationsPage />} />
                 <Route path="settings" element={<SettingsPage />} />
@@ -114,3 +125,4 @@ function App() {
 }
 
 export default App;
+
