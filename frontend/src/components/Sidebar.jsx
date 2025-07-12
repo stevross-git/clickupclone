@@ -1,6 +1,6 @@
 // frontend/src/components/Sidebar.jsx
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
   HomeIcon,
   CalendarIcon,
@@ -25,7 +25,6 @@ import CreateProjectModal from './CreateProjectModal';
 
 const Sidebar = ({ open, onClose }) => {
   const location = useLocation();
-  const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { unreadCount } = useNotification();
 
@@ -36,8 +35,12 @@ const Sidebar = ({ open, onClose }) => {
   const [showCreateProject, setShowCreateProject] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // ──────────────────────────────────────────────────────────────
+  // Data loading helpers
+  // ──────────────────────────────────────────────────────────────
   useEffect(() => {
     loadWorkspacesAndProjects();
+    // eslint‑disable‑next‑line react-hooks/exhaustive-deps
   }, []);
 
   const loadWorkspacesAndProjects = async () => {
@@ -50,40 +53,27 @@ const Sidebar = ({ open, onClose }) => {
       setWorkspaces(workspacesData);
       setProjects(projectsData);
 
-      // Auto-expand workspaces with projects
-      const workspacesWithProjects = new Set(projectsData.map((p) => p.workspace_id));
-      setExpandedWorkspaces(workspacesWithProjects);
-    } catch (error) {
-      console.error('Failed to load workspaces and projects:', error);
+      // auto‑expand every workspace that already has projects
+      setExpandedWorkspaces(new Set(projectsData.map((p) => p.workspace_id)));
+    } catch (err) {
+      console.error('Failed to load workspaces / projects:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const toggleWorkspace = (workspaceId) => {
-    const newExpanded = new Set(expandedWorkspaces);
-    if (newExpanded.has(workspaceId)) {
-      newExpanded.delete(workspaceId);
-    } else {
-      newExpanded.add(workspaceId);
-    }
-    setExpandedWorkspaces(newExpanded);
-  };
+  const toggleWorkspace = (id) =>
+    setExpandedWorkspaces((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
 
-  const getProjectsForWorkspace = (workspaceId) => {
-    return projects.filter((p) => p.workspace_id === workspaceId);
-  };
+  const getProjectsForWorkspace = (id) => projects.filter((p) => p.workspace_id === id);
 
-  const handleWorkspaceCreated = () => {
-    loadWorkspacesAndProjects();
-    setShowCreateWorkspace(false);
-  };
-
-  const handleProjectCreated = () => {
-    loadWorkspacesAndProjects();
-    setShowCreateProject(false);
-  };
-
+  // ──────────────────────────────────────────────────────────────
+  // Navigation defs
+  // ──────────────────────────────────────────────────────────────
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
     { name: 'Calendar', href: '/calendar', icon: CalendarIcon },
@@ -101,23 +91,26 @@ const Sidebar = ({ open, onClose }) => {
 
   const isActive = (href) => location.pathname === href;
 
+  // ──────────────────────────────────────────────────────────────
+  // Render
+  // ──────────────────────────────────────────────────────────────
   return (
     <>
-      {/* Desktop sidebar */}
+      {/* ── Sidebar container (mobile slide‑in + desktop static) ── */}
       <div
         className={`
-        fixed inset-y-0 left-0 z-50 w-64 transform border-r border-gray-200 bg-white transition-transform duration-300 ease-in-out
-        ${open ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0
-      `}
+          fixed inset-y-0 left-0 z-50 w-64 transform border-r border-gray-200 bg-white transition-transform duration-300
+          ${open ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0
+        `}
       >
         <div className="flex h-full flex-col">
-          {/* Logo */}
+          {/* Header / logo */}
           <div className="flex h-16 items-center justify-between border-b border-gray-200 px-6">
             <Link to="/dashboard" className="flex items-center space-x-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-r from-purple-600 to-blue-600">
                 <DocumentTextIcon className="h-5 w-5 text-white" />
               </div>
-              <span className="text-xl font-bold text-gray-900">ClickUp Clone</span>
+              <span className="text-xl font-bold text-gray-900">ClickUp&nbsp;Clone</span>
             </Link>
 
             {/* Mobile close button */}
@@ -129,7 +122,7 @@ const Sidebar = ({ open, onClose }) => {
             </button>
           </div>
 
-          {/* User info */}
+          {/* User panel */}
           <div className="border-b border-gray-200 p-4">
             <div className="mb-4 flex items-center space-x-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-300">
@@ -155,22 +148,21 @@ const Sidebar = ({ open, onClose }) => {
               </label>
               <input
                 id="sidebar-search"
-                name="sidebar-search"
                 type="text"
-                autoComplete="off"
                 placeholder="Search"
                 className="w-full rounded-lg border border-gray-200 py-2 pl-10 pr-4 text-sm focus:border-transparent focus:ring-2 focus:ring-purple-500"
+                autoComplete="off"
               />
             </div>
           </div>
 
-          {/* Navigation */}
+          {/* Main nav */}
           <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-4">
             {navigation.map((item) => (
               <Link
                 key={item.name}
                 to={item.href}
-                onClick={() => onClose()}
+                onClick={onClose}
                 className={`
                   group relative flex items-center rounded-md px-3 py-2 text-sm font-medium
                   ${
@@ -182,9 +174,13 @@ const Sidebar = ({ open, onClose }) => {
               >
                 <item.icon
                   className={`
-                  mr-3 h-5 w-5 flex-shrink-0
-                  ${isActive(item.href) ? 'text-purple-500' : 'text-gray-400 group-hover:text-gray-500'}
-                `}
+                    mr-3 h-5 w-5 flex-shrink-0
+                    ${
+                      isActive(item.href)
+                        ? 'text-purple-500'
+                        : 'text-gray-400 group-hover:text-gray-500'
+                    }
+                  `}
                 />
                 {item.name}
                 {item.badge && (
@@ -195,58 +191,10 @@ const Sidebar = ({ open, onClose }) => {
               </Link>
             ))}
 
-<<<<<<< HEAD
-            {/* Workspaces section */}
+            {/* Workspace list */}
             <div className="pt-6">
-              <div className="flex items-center justify-between px-3 py-2">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-=======
-            <div
-              className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-not-allowed opacity-50`}
-            >
-              <InboxIcon className="h-5 w-5" />
-              {!isCollapsed && <span>Inbox</span>}
-              {!isCollapsed && <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">3</span>}
-            </div>
-
-            <div
-              className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-not-allowed opacity-50`}
-            >
-              <CalendarIcon className="h-5 w-5" />
-              {!isCollapsed && <span>Calendar</span>}
-            </div>
-
-            <Link
-              to="/time-tracking"
-              className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                location.pathname === '/time-tracking'
-                  ? 'bg-purple-100 text-purple-700'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              <ClockIcon className="h-5 w-5" />
-              {!isCollapsed && <span>Time Tracking</span>}
-            </Link>
-
-            <Link
-              to="/goals"
-              className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                location.pathname === '/goals'
-                  ? 'bg-purple-100 text-purple-700'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              <ChartBarIcon className="h-5 w-5" />
-              {!isCollapsed && <span>Goals</span>}
-            </Link>
-          </div>
-
-          {/* Workspaces Section */}
-          {!isCollapsed && (
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
->>>>>>> 5cd483dc5dc7ef33d3efcd4f99cf6bff949883e2
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="px-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
                   Workspaces
                 </h3>
                 <button
@@ -261,33 +209,41 @@ const Sidebar = ({ open, onClose }) => {
               {loading ? (
                 <div className="px-3 py-2">
                   <div className="animate-pulse space-y-2">
-                    <div className="h-4 rounded bg-gray-200"></div>
-                    <div className="h-4 w-3/4 rounded bg-gray-200"></div>
+                    <div className="h-4 rounded bg-gray-200" />
+                    <div className="h-4 w-3/4 rounded bg-gray-200" />
                   </div>
                 </div>
+              ) : workspaces.length === 0 ? (
+                <button
+                  onClick={() => setShowCreateWorkspace(true)}
+                  className="flex w-full items-center rounded-md border-2 border-dashed border-gray-300 px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+                >
+                  <PlusIcon className="mr-2 h-4 w-4" />
+                  Create your first workspace
+                </button>
               ) : (
                 <div className="space-y-1">
-                  {workspaces.map((workspace) => {
-                    const workspaceProjects = getProjectsForWorkspace(workspace.id);
-                    const isExpanded = expandedWorkspaces.has(workspace.id);
+                  {workspaces.map((ws) => {
+                    const wsProjects = getProjectsForWorkspace(ws.id);
+                    const expanded = expandedWorkspaces.has(ws.id);
 
                     return (
-                      <div key={workspace.id}>
+                      <div key={ws.id}>
                         <button
-                          onClick={() => toggleWorkspace(workspace.id)}
+                          onClick={() => toggleWorkspace(ws.id)}
                           className="group flex w-full items-center rounded-md px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                         >
-                          {workspaceProjects.length > 0 ? (
-                            isExpanded ? (
+                          {wsProjects.length > 0 ? (
+                            expanded ? (
                               <ChevronDownIcon className="mr-2 h-4 w-4 text-gray-400" />
                             ) : (
                               <ChevronRightIcon className="mr-2 h-4 w-4 text-gray-400" />
                             )
                           ) : (
-                            <div className="mr-2 h-4 w-4" />
+                            <span className="mr-2 h-4 w-4" />
                           )}
                           <FolderIcon className="mr-2 h-4 w-4 text-gray-400" />
-                          <span className="flex-1 truncate text-left">{workspace.name}</span>
+                          <span className="flex-1 truncate text-left">{ws.name}</span>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -301,27 +257,27 @@ const Sidebar = ({ open, onClose }) => {
                         </button>
 
                         {/* Projects */}
-                        {isExpanded && workspaceProjects.length > 0 && (
+                        {expanded && wsProjects.length > 0 && (
                           <div className="ml-6 space-y-1">
-                            {workspaceProjects.map((project) => (
+                            {wsProjects.map((proj) => (
                               <Link
-                                key={project.id}
-                                to={`/project/${project.id}`}
-                                onClick={() => onClose()}
+                                key={proj.id}
+                                to={`/project/${proj.id}`}
+                                onClick={onClose}
                                 className={`
                                   flex items-center rounded-md px-3 py-1.5 text-sm
                                   ${
-                                    location.pathname === `/project/${project.id}`
+                                    location.pathname === `/project/${proj.id}`
                                       ? 'bg-purple-50 text-purple-700'
                                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                                   }
                                 `}
                               >
-                                <div
+                                <span
                                   className="mr-2 h-3 w-3 flex-shrink-0 rounded"
-                                  style={{ backgroundColor: project.color }}
+                                  style={{ backgroundColor: proj.color }}
                                 />
-                                <span className="truncate">{project.name}</span>
+                                <span className="truncate">{proj.name}</span>
                               </Link>
                             ))}
                           </div>
@@ -329,22 +285,12 @@ const Sidebar = ({ open, onClose }) => {
                       </div>
                     );
                   })}
-
-                  {workspaces.length === 0 && (
-                    <button
-                      onClick={() => setShowCreateWorkspace(true)}
-                      className="flex w-full items-center rounded-md border-2 border-dashed border-gray-300 px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700"
-                    >
-                      <PlusIcon className="mr-2 h-4 w-4" />
-                      Create your first workspace
-                    </button>
-                  )}
                 </div>
               )}
             </div>
           </nav>
 
-          {/* Logout button */}
+          {/* Sign‑out */}
           <div className="border-t border-gray-200 p-4">
             <button
               onClick={logout}
@@ -358,7 +304,7 @@ const Sidebar = ({ open, onClose }) => {
                   d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013 3v1"
                 />
               </svg>
-              Sign out
+              Sign&nbsp;out
             </button>
           </div>
         </div>
@@ -368,13 +314,12 @@ const Sidebar = ({ open, onClose }) => {
       <CreateWorkspaceModal
         isOpen={showCreateWorkspace}
         onClose={() => setShowCreateWorkspace(false)}
-        onSuccess={handleWorkspaceCreated}
+        onSuccess={loadWorkspacesAndProjects}
       />
-
       <CreateProjectModal
         isOpen={showCreateProject}
         onClose={() => setShowCreateProject(false)}
-        onSuccess={handleProjectCreated}
+        onSuccess={loadWorkspacesAndProjects}
         workspaces={workspaces}
       />
     </>
