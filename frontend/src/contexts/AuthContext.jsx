@@ -1,4 +1,4 @@
-// contexts/AuthContext.jsx
+// frontend/src/contexts/AuthContext.jsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import apiClient from '../services/api';
 

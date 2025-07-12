@@ -1,0 +1,94 @@
+.
+├── backend
+│   ├── app
+│   │   ├── alembic
+│   │   │   └── env.py
+│   │   ├── api
+│   │   │   ├── api_v1
+│   │   │   │   ├── api.py
+│   │   │   │   ├── endpoints
+│   │   │   │   │   ├── auth.py
+│   │   │   │   │   ├── __init__.py
+│   │   │   │   │   └── tasks.py
+│   │   │   │   └── __init__.py
+│   │   │   ├── deps.py
+│   │   │   └── __init__.py
+│   │   ├── core
+│   │   │   ├── config.py
+│   │   │   ├── __init__.py
+│   │   │   └── security.py
+│   │   ├── db
+│   │   │   ├── __init__.py
+│   │   │   └── session.py
+│   │   ├── __init__.py
+│   │   ├── main.py
+│   │   ├── models
+│   │   │   ├── __init__.py
+│   │   │   ├── models.py
+│   │   │   ├── task.py
+│   │   │   └── user.py
+│   │   └── schemas
+│   │       ├── __init__.py
+│   │       ├── schemas.py
+│   │       ├── task.py
+│   │       └── token.py
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   └── sharks.db
+├── docker-compose.yml
+├── frontend
+│   ├── Dockerfile
+│   ├── eslint.config.js
+│   ├── .gitignore
+│   ├── index.html
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── postcss.config.js
+│   ├── public
+│   │   └── vite.svg
+│   ├── README.md
+│   ├── src
+│   │   ├── App.css
+│   │   ├── App.jsx
+│   │   ├── assets
+│   │   │   └── react.svg
+│   │   ├── components
+│   │   │   ├── CalendarView.jsx
+│   │   │   ├── CreateProjectModal.jsx
+│   │   │   ├── CreateTaskModal.jsx
+│   │   │   ├── CreateWorkspaceModal.jsx
+│   │   │   ├── Header.jsx
+│   │   │   ├── KanbanBoard.jsx
+│   │   │   ├── Layout.jsx
+│   │   │   ├── ListView.jsx
+│   │   │   ├── ProtectedRoute.jsx
+│   │   │   ├── Sidebar.jsx
+│   │   │   ├── TaskCard.jsx
+│   │   │   └── TaskModal.jsx
+│   │   ├── contexts
+│   │   │   ├── AuthContext.jsx
+│   │   │   └── NotificationContext.jsx
+│   │   ├── hooks
+│   │   │   └── useRealTimeUpdates.js
+│   │   ├── index.css
+│   │   ├── index.js
+│   │   ├── main.jsx
+│   │   ├── pages
+│   │   │   ├── CalendarView.jsx
+│   │   │   ├── Dashboard.jsx
+│   │   │   ├── ListView.jsx
+│   │   │   ├── LoginPage.jsx
+│   │   │   ├── ProjectView.jsx
+│   │   │   └── RegisterPage.jsx
+│   │   └── services
+│   │       └── api.js
+│   ├── tailwind.config.js
+│   └── vite.config.js
+├── .gitignore
+├── package-lock.json
+├── readme.md
+├── README.md
+├── repo-tree.txt
+└── sitecustomize.py
+
+19 directories, 72 files

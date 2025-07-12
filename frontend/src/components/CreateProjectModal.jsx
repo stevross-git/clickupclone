@@ -1,26 +1,29 @@
-// components/CreateProjectModal.jsx
+// frontend/src/components/CreateProjectModal.jsx
 import React, { useState } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import apiClient from '../services/api';
 import { useNotification } from '../contexts/NotificationContext';
 
 const PROJECT_COLORS = [
-  '#3b82f6', // blue
-  '#8b5cf6', // purple
-  '#10b981', // emerald
-  '#f59e0b', // amber
-  '#ef4444', // red
-  '#06b6d4', // cyan
-  '#84cc16', // lime
-  '#f97316', // orange
-  '#ec4899', // pink
-  '#6b7280'  // gray
+  '#7c3aed', // Purple
+  '#2563eb', // Blue
+  '#059669', // Emerald
+  '#dc2626', // Red
+  '#ea580c', // Orange
+  '#ca8a04', // Yellow
+  '#9333ea', // Violet
+  '#0891b2', // Cyan
+  '#16a34a', // Green
+  '#be123c', // Rose
+  '#9a3412', // Amber
+  '#4338ca', // Indigo
 ];
 
-function CreateProjectModal({ workspaces, selectedWorkspace, onClose, onProjectCreated }) {
+function CreateProjectModal({ onClose, onProjectCreated, workspaces = [] }) {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    workspace_id: selectedWorkspace ? selectedWorkspace.id : (workspaces.length > 0 ? workspaces[0].id : ''),
+    workspace_id: workspaces.length > 0 ? workspaces[0].id : '',
     color: PROJECT_COLORS[0]
   });
   const [loading, setLoading] = useState(false);
@@ -30,7 +33,7 @@ function CreateProjectModal({ workspaces, selectedWorkspace, onClose, onProjectC
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'workspace_id' ? parseInt(value) : value
+      [name]: value
     }));
   };
 
@@ -43,6 +46,7 @@ function CreateProjectModal({ workspaces, selectedWorkspace, onClose, onProjectC
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
     if (!formData.name.trim()) {
       addNotification('Project name is required', 'error');
       return;
@@ -56,31 +60,26 @@ function CreateProjectModal({ workspaces, selectedWorkspace, onClose, onProjectC
     setLoading(true);
 
     try {
-      // For now, create a mock project
-      const newProject = {
-        id: Date.now(), // Simple ID generation for demo
-        name: formData.name,
-        description: formData.description,
-        workspace_id: formData.workspace_id,
-        color: formData.color
-      };
-      
-      onProjectCreated(newProject);
+      const response = await apiClient.post('/projects/', formData);
       addNotification('Project created successfully', 'success');
+      onProjectCreated(response.data);
     } catch (error) {
       console.error('Error creating project:', error);
-      addNotification('Error creating project', 'error');
+      addNotification(
+        error.response?.data?.detail || 'Failed to create project',
+        'error'
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+    <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">Create Project</h2>
+          <h2 className="text-lg font-medium text-gray-900">Create New Project</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -90,75 +89,80 @@ function CreateProjectModal({ workspaces, selectedWorkspace, onClose, onProjectC
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Project Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
               Project Name *
             </label>
             <input
               type="text"
+              id="name"
               name="name"
               value={formData.name}
               onChange={handleChange}
-              placeholder="Enter project name..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"
+              placeholder="Enter project name"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-colors"
               required
             />
           </div>
 
+          {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Workspace *
-            </label>
-            <select
-              name="workspace_id"
-              value={formData.workspace_id}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"
-              required
-              disabled={selectedWorkspace ? true : false}
-            >
-              {workspaces.map(workspace => (
-                <option key={workspace.id} value={workspace.id}>
-                  {workspace.name}
-                </option>
-              ))}
-            </select>
-            {selectedWorkspace && (
-              <p className="text-xs text-gray-500 mt-1">
-                Creating project in "{selectedWorkspace.name}" workspace
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
               Description
             </label>
             <textarea
+              id="description"
               name="description"
               value={formData.description}
               onChange={handleChange}
-              placeholder="Describe your project..."
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"
+              placeholder="Enter project description (optional)"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-colors resize-none"
             />
           </div>
 
+          {/* Workspace Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="workspace_id" className="block text-sm font-medium text-gray-700 mb-2">
+              Workspace *
+            </label>
+            <select
+              id="workspace_id"
+              name="workspace_id"
+              value={formData.workspace_id}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-colors"
+              required
+            >
+              {workspaces.length === 0 ? (
+                <option value="">No workspaces available</option>
+              ) : (
+                workspaces.map((workspace) => (
+                  <option key={workspace.id} value={workspace.id}>
+                    {workspace.name}
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
+
+          {/* Color Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">
               Project Color
             </label>
-            <div className="grid grid-cols-5 gap-2">
-              {PROJECT_COLORS.map(color => (
+            <div className="grid grid-cols-6 gap-3">
+              {PROJECT_COLORS.map((color) => (
                 <button
                   key={color}
                   type="button"
                   onClick={() => handleColorSelect(color)}
-                  className={`w-8 h-8 rounded-full border-2 transition-all ${
-                    formData.color === color 
-                      ? 'border-gray-900 scale-110' 
-                      : 'border-gray-300 hover:border-gray-400'
+                  className={`w-8 h-8 rounded-full border-2 transition-all duration-200 ${
+                    formData.color === color
+                      ? 'border-gray-900 scale-110 shadow-lg'
+                      : 'border-gray-300 hover:border-gray-400 hover:scale-105'
                   }`}
                   style={{ backgroundColor: color }}
                 />
@@ -166,18 +170,38 @@ function CreateProjectModal({ workspaces, selectedWorkspace, onClose, onProjectC
             </div>
           </div>
 
-          <div className="flex justify-end space-x-3 pt-4">
+          {/* Preview */}
+          <div className="bg-gray-50 rounded-lg p-4">
+            <h3 className="text-sm font-medium text-gray-700 mb-2">Preview</h3>
+            <div className="flex items-center space-x-3">
+              <div
+                className="w-6 h-6 rounded-lg flex-shrink-0"
+                style={{ backgroundColor: formData.color }}
+              ></div>
+              <div>
+                <h4 className="text-sm font-medium text-gray-900">
+                  {formData.name || 'Project Name'}
+                </h4>
+                <p className="text-xs text-gray-600">
+                  {formData.description || 'No description'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading || !formData.name.trim() || !formData.workspace_id}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-2 text-sm font-medium text-white bg-purple-600 border border-transparent rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? 'Creating...' : 'Create Project'}
             </button>
