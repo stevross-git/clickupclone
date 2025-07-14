@@ -98,6 +98,11 @@ export const AuthProvider = ({ children }) => {
       // Call apiService.login with email and password
       const loginData = await apiService.login(email, password);
 
+      // Persist token for subsequent requests
+      if (loginData?.access_token) {
+        localStorage.setItem('accessToken', loginData.access_token);
+      }
+
       // Get current user data
       const user = await apiService.getCurrentUser();
 
@@ -113,7 +118,11 @@ export const AuthProvider = ({ children }) => {
       toast.success(`Welcome back, ${user.full_name}!`);
       return { success: true };
     } catch (error) {
-      const message = error.response?.data?.detail || 'Login failed';
+      let message = error.response?.data?.detail || 'Login failed';
+      const status = error.response?.status;
+      if (status === 402) {
+        message = 'Payment required. Please check your subscription.';
+      }
       dispatch({ type: 'SET_ERROR', payload: message });
       toast.error(message);
       return { success: false, error: message };
