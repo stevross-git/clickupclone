@@ -29,7 +29,7 @@ const LoginPage = () => {
     setIsSubmitting(true);
 
     try {
-      const result = await login(formData);
+      const result = await login(formData.username, formData.password);
       if (result.success) {
         navigate(from, { replace: true });
       }

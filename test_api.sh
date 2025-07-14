@@ -14,9 +14,16 @@ echo " - API docs response code"
 
 # Test auth endpoint with demo credentials
 echo -e "\n3. Testing login with demo credentials..."
-TOKEN=$(curl -s -X POST "http://localhost:8000/api/v1/auth/token" \
+LOGIN_RES=$(curl -s -w "%{http_code}" -o /tmp/login.json -X POST \
+  "http://localhost:8000/api/v1/auth/token" \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=demo@example.com&password=demo123" | jq -r '.access_token')
+  -d "username=demo@example.com&password=demo123")
+if [ -f /tmp/login.json ]; then
+  TOKEN=$(cat /tmp/login.json | jq -r '.access_token')
+else
+  TOKEN=""
+fi
+echo "Login response code: $LOGIN_RES"
 
 if [ "$TOKEN" != "null" ] && [ ! -z "$TOKEN" ]; then
   echo "✅ Login successful! Token: ${TOKEN:0:20}..."
